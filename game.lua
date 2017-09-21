@@ -1,5 +1,12 @@
 g_state = nil
 
+g_corners = {
+	top_left = 1,
+	top_right = 2,
+	bottom_right = 3,
+	bottom_left = 4,
+}
+
 --
 -- Encapsulates the ingame state
 --
@@ -18,9 +25,11 @@ ingame_state = {
 
 		-- Make the player
 		local player_height = 8
-		local player_start_x = 1 * 128 / 4 -- @TODO Replace with per-level definition
-		local player_start_y = 3 * 128 / 4 -- @TODO Replace with per-level definition
-		self.player = make_player("player", player_start_x, player_start_y, 1, 2)
+		local player_start_x = 2 * 128 / 4 -- @TODO Replace with per-level definition
+		local player_start_y = 1 * 128 / 4 -- @TODO Replace with per-level definition
+		local player_sprite = 1
+		local player_speed = 2
+		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed)
 		add(self.scene, self.player)
 	end,
 
@@ -33,6 +42,15 @@ ingame_state = {
 
 		if btn(1) then
 			self.player.velocity.x += self.player.walk_speed
+		end
+
+		-- @DEBUG
+		if btn(2) then
+			self.player.velocity.y -= self.player.walk_speed
+		end
+
+		if btn(3) then
+			self.player.velocity.y += self.player.walk_speed
 		end
 
 		-- @DEBUG Reset the game
@@ -103,12 +121,15 @@ function make_player(name, start_x, start_y, sprite, walk_speed)
 		end
 
 		update_anim_spr_controller(self.anim_controller, self)
+
+		g_log.log("player: "..vec2_str(self.position))
 	end
 
 	-- Updates player physics
 	new_player.update_physics = function(self)
-		self.old_position = self.position
 		self.velocity += g_physics.gravity
+
+		self.old_position = clone_vec2(self.position)
 		self.position += self.velocity
 
 		self.check_for_collisions(self, 1)
@@ -116,13 +137,155 @@ function make_player(name, start_x, start_y, sprite, walk_speed)
 
 	-- Checks for collisions with the player
 	new_player.check_for_collisions = function(self, iteration)
-		-- @TODO Get a list of sprites the player is overlapping 
-		-- @TODO For each sprite with collision flag:
-		-- @TODO	If player overlaps this sprite, back off along inverted velocity vector
-		-- @TOOD        Restart algorithm
+		local max_iterations = 3
+		if iteration == max_iterations then 
+			return
+		end
+
+		local direction = vec2_normalized(self.velocity)
+
+		-- Check if left foot is on ground
+		g_log.log(iteration..": LF")
+		local old_left_foot = self.old_position + make_vec2(8 * 0.33, 7)
+		local left_foot = self.position + make_vec2(8 * 0.33, 7)
+		local left_foot_intersection = check_swept_collision(old_left_foot, left_foot)
+
+		-- Check if right foot is on ground
+		g_log.log(iteration..": RF")
+		local old_right_foot = self.old_position + make_vec2(8 * 0.66, 7)
+		local right_foot = self.position + make_vec2(8 * 0.66, 7)
+		local right_foot_intersection = check_swept_collision(old_right_foot, right_foot)
+
+		-- Adjust position to account for the collision
+		if left_foot_intersection ~= nil then
+			self.position.y = left_foot_intersection.position.y - 8
+			return self.check_for_collisions(self, iteration + 1)
+		elseif right_foot_intersection ~= nil then
+			self.position.y = right_foot_intersection.position.y - 8
+			return self.check_for_collisions(self, iteration + 1)
+		end
+
+		-- Check if the left side of the head is against tile
+		g_log.log(iteration..": LH")
+		local old_left_head = clone_vec2(self.old_position)
+		local left_head = clone_vec2(self.position)
+		local left_head_intersection = check_swept_collision(old_left_head, left_head)
+
+		-- Adjust position to account for the collision
+		if left_head_intersection ~= nil then
+			self.position.x = left_head_intersection.position.x + 8
+			return self.check_for_collisions(self, iteration + 1)
+		end
+
+		g_log.log(iteration..": RH")
+		-- Check if the right side of the head is against tile
+		local old_right_head = self.old_position + make_vec2(7, 0)
+		local right_head = clone_vec2(self.position) + make_vec2(7, 0)
+		local right_head_intersection = check_swept_collision(old_right_head, right_head)
+
+		-- Adjust position to account for the collision
+		if right_head_intersection ~= nil then
+			self.position.x = right_head_intersection.position.x - 8
+			return self.check_for_collisions(self, iteration + 1)
+		end
 	end
 
 	return new_player
+end
+
+-- 
+-- Check for collisions between a dynamic position and a the tilemap using a sweeping algorithm
+--
+function check_swept_collision(old_position, new_position)
+	local direction = vec2_normalized(new_position - old_position)
+	local attempted_magnitude = vec2_magnitude(new_position - old_position)
+	local sweeper = clone_vec2(old_position)
+	while (intersection == nil and (vec2_magnitude(sweeper - old_position) < attempted_magnitude)) do
+		local tile = get_map_tile_at_position(sweeper)
+		if tile ~= nil then
+			g_log.log("s: "..vec2_str(sweeper).." tc: "..vec2_str(tile.cell))
+			if fget(tile.sprite, 0) then
+				g_log.log("COLLISION")
+			 	return tile
+			end
+		end
+		sweeper += clone_vec2(direction)
+	end
+
+	return nil
+end
+
+--
+-- Gets a list of tiles an object is overlapping
+-- 
+function get_overlapping_tiles(game_obj, width, height)
+	local overlaps = {}
+
+	-- Top left
+	local tile = get_map_tile_at_position(game_obj.position)
+	if tile ~= nil then
+		tile.corner = g_corners.top_left
+		tile.col_position = game_obj.position
+		add(overlaps, tile)
+	end
+
+	-- Top right
+	tile = get_map_tile_at_position(game_obj.position + make_vec2(width, 0))
+	if tile ~= nil then
+		tile.corner = g_corners.top_right
+		tile.col_position = game_obj.position + make_vec2(width, 0)
+		add(overlaps, tile)
+	end
+
+	-- Bottom right
+	tile = get_map_tile_at_position(game_obj.position + make_vec2(width, height))
+	if tile ~= nil then
+		tile.corner = g_corners.bottom_right
+		tile.col_position = game_obj.position + make_vec2(width, height)
+		add(overlaps, tile)
+	end
+
+	-- Bottom left
+	local tile = get_map_tile_at_position(game_obj.position + make_vec2(0, height))
+	if tile ~= nil then
+		tile.corner = g_corners.bottom_left
+		tile.col_position = game_obj.position + make_vec2(0, height)
+		add(overlaps, tile)
+	end
+
+	return overlaps
+end
+
+--
+-- Gets the map tile at a pixel position
+--
+function get_map_tile_at_position(position)
+	if position.x < 0 or position.y < 0 then
+		return nil
+	end
+
+	local cell = position_to_cell(position)
+	return { sprite = mget(cell.x, cell.y), cell = cell, position = cell_to_position(cell.x, cell.y) }
+end
+
+--
+-- Converts a worldspace position to map cell coords
+--
+function position_to_cell(position)
+	local cell_x = flr(position.x / 8)
+	local cell_y = flr(position.y / 8)
+
+	return make_vec2(cell_x, cell_y)
+end
+
+--
+-- Converts map cell coords to a worldspace position
+--
+function cell_to_position(x, y)
+	local world_x = x * 8
+	local world_y = y * 8
+
+	return make_vec2(world_x, world_y)
 end
 
 --
@@ -354,7 +517,7 @@ g_physics = {
 }
 
 g_physics.init = function(self)
-	self.gravity = make_vec2(0, 2)
+	self.gravity = make_vec2(0, 4)
 end
 
 
@@ -395,6 +558,10 @@ function make_vec2(x, y)
 	}
 	setmetatable(table, vec2_meta)
 	return table;
+end
+
+function clone_vec2(v) 
+	return make_vec2(v.x, v.y)
 end
 
 function vec2_magnitude(v)
