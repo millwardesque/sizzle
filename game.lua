@@ -14,11 +14,17 @@ ingame_state = {
 	scene = nil,
 	main_camera = nil,
 	player = nil,
+	tile_manager = nil,
 
 	enter = function(self)
 		self.scene = {}
 
 		g_physics.init(g_physics)
+
+		-- Create the tiles
+		self.tile_manager = make_tile_manager(128, 128)
+		self.tile_manager.init(self.tile_manager)
+		add(self.scene, self.tile_manager)
 
 		-- Make the camera
 		self.main_camera = make_camera(0, 0, 128, 128, 0, 0)
@@ -67,10 +73,6 @@ ingame_state = {
 		end
 
 		-- @TODO Collision detection
-
-		for o in all(self.scene) do
-			g_log.log("scene: "..o.name)
-		end
 	end,
 
 	draw = function(self)
@@ -80,7 +82,6 @@ ingame_state = {
 	exit = function(self)
 	end
 }
-
 
 --
 -- Create a player
@@ -132,26 +133,31 @@ function make_player(name, start_x, start_y, sprite, walk_speed)
 		self.old_position = clone_vec2(self.position)
 		self.position += self.velocity
 
-		self.check_for_collisions(self, 1)
+		local collisions = self.check_for_collisions(self, {}, 1)
+		for col in all(collisions) do
+			local tile = g_state.tile_manager.tiles[col.cell.x + 1][col.cell.y + 1]
+			g_log.log(tile_str(tile))
+			tile.state = "warmup"
+		end
 	end
 
 	-- Checks for collisions with the player
-	new_player.check_for_collisions = function(self, iteration)
+	new_player.check_for_collisions = function(self, collisions, iteration)
 		local max_iterations = 3
-		if iteration == max_iterations then 
-			return
+		if iteration > max_iterations then 
+			return collisions
 		end
 
 		local direction = vec2_normalized(self.velocity)
 
 		-- Check if left foot is on ground
-		g_log.log(iteration..": LF")
+		-- g_log.log(iteration..": LF")
 		local old_left_foot = self.old_position + make_vec2(8 * 0.33, 7)
 		local left_foot = self.position + make_vec2(8 * 0.33, 7)
 		local left_foot_intersection = check_swept_collision(old_left_foot, left_foot)
 
 		-- Check if right foot is on ground
-		g_log.log(iteration..": RF")
+		-- g_log.log(iteration..": RF")
 		local old_right_foot = self.old_position + make_vec2(8 * 0.66, 7)
 		local right_foot = self.position + make_vec2(8 * 0.66, 7)
 		local right_foot_intersection = check_swept_collision(old_right_foot, right_foot)
@@ -159,14 +165,16 @@ function make_player(name, start_x, start_y, sprite, walk_speed)
 		-- Adjust position to account for the collision
 		if left_foot_intersection ~= nil then
 			self.position.y = left_foot_intersection.position.y - 8
-			return self.check_for_collisions(self, iteration + 1)
+			add(collisions, left_foot_intersection)
+			return self.check_for_collisions(self, collisions, iteration + 1)
 		elseif right_foot_intersection ~= nil then
 			self.position.y = right_foot_intersection.position.y - 8
-			return self.check_for_collisions(self, iteration + 1)
+			add(collisions, right_foot_intersection)
+			return self.check_for_collisions(self, collisions, iteration + 1)
 		end
 
 		-- Check if the left side of the head is against tile
-		g_log.log(iteration..": LH")
+		-- g_log.log(iteration..": LH")
 		local old_left_head = clone_vec2(self.old_position)
 		local left_head = clone_vec2(self.position)
 		local left_head_intersection = check_swept_collision(old_left_head, left_head)
@@ -174,10 +182,11 @@ function make_player(name, start_x, start_y, sprite, walk_speed)
 		-- Adjust position to account for the collision
 		if left_head_intersection ~= nil then
 			self.position.x = left_head_intersection.position.x + 8
-			return self.check_for_collisions(self, iteration + 1)
+			add(collisions, left_head_intersection)
+			return self.check_for_collisions(self, collisions, iteration + 1)
 		end
 
-		g_log.log(iteration..": RH")
+		-- g_log.log(iteration..": RH")
 		-- Check if the right side of the head is against tile
 		local old_right_head = self.old_position + make_vec2(7, 0)
 		local right_head = clone_vec2(self.position) + make_vec2(7, 0)
@@ -186,11 +195,95 @@ function make_player(name, start_x, start_y, sprite, walk_speed)
 		-- Adjust position to account for the collision
 		if right_head_intersection ~= nil then
 			self.position.x = right_head_intersection.position.x - 8
-			return self.check_for_collisions(self, iteration + 1)
+			add(collisions, right_head_intersection)
+			return self.check_for_collisions(self, collisions, iteration + 1)
 		end
+
+		return collisions
 	end
 
 	return new_player
+end
+
+--
+-- Creates a timer for a single tile
+--
+function make_tile(name, max_duration)
+	local t = make_game_object(name, 0, 0)
+	t.state = 'idle'
+	t.elapsed = 0
+	t.max_duration = max_duration
+
+	t.update = function(self)
+		if self.state == 'idle' then
+			-- Do nothing.
+		elseif self.state == 'cooldown' then
+			self.elapsed -= 1
+
+			if self.elapsed <= 0 then
+				self.elapsed = 0
+				self.state = 'idle'
+			end
+		elseif self.state == 'warmup' then
+			self.elapsed += 1
+
+			if self.elapsed >= self.max_duration then
+				self.elapsed = self.max_duration
+				self.state = 'destroyed'
+			else
+				self.state = 'cooldown'	-- This can be changed to warmup next frame if the tile is activated again
+			end
+		elseif self.state == 'destroyed' then
+			-- @TODO Destroy tile
+		end
+	end
+
+	return t
+end
+
+function tile_str(tile)
+	return tile.name.." : s = "..tile.state.." : e = "..tile.elapsed
+end
+
+--
+-- Creates a manager for a grid of tiles
+function make_tile_manager(width, height)
+	local tile_manager = make_game_object("tile manager", start_x, start_y)
+	tile_manager.tiles = {}
+	tile_manager.width = width
+	tile_manager.height = height
+	tile_manager.tile_timer_duration = 10
+
+	tile_manager.init = function(self) 
+		-- Populate the tiles for collidable tiles
+		self.tiles = {}
+		for x = 0, self.width - 1 do
+			add(self.tiles, {})
+			for y = 0, self.height - 1 do
+				if is_cell_collidable(x, y) then
+					add(self.tiles[x + 1], make_tile("Tile-"..x.."-"..y, self.tile_timer_duration))
+					add(g_state.scene, self.tiles[x + 1][y + 1])
+				else
+					add(self.tiles[x + 1], 0) -- Can't add nil to a table for some reason.
+				end
+			end
+		end
+	end
+
+	tile_manager.update = function(self)
+		for x = 1, self.width do
+			for y = 1, self.height do
+				local tile = self.tiles[x][y]
+				if tile ~= 0 and tile.state == 'destroyed' then
+					del(g_state.scene, tile)
+					mset(x - 1, y - 1, 0)
+					self.tiles[x][y] = 0
+				end
+			end
+		end
+	end
+
+	return tile_manager
 end
 
 -- 
@@ -203,9 +296,9 @@ function check_swept_collision(old_position, new_position)
 	while (intersection == nil and (vec2_magnitude(sweeper - old_position) < attempted_magnitude)) do
 		local tile = get_map_tile_at_position(sweeper)
 		if tile ~= nil then
-			g_log.log("s: "..vec2_str(sweeper).." tc: "..vec2_str(tile.cell))
+			-- g_log.log("s: "..vec2_str(sweeper).." tc: "..vec2_str(tile.cell))
 			if fget(tile.sprite, 0) then
-				g_log.log("COLLISION")
+				-- g_log.log("COLLISION")
 			 	return tile
 			end
 		end
@@ -213,47 +306,6 @@ function check_swept_collision(old_position, new_position)
 	end
 
 	return nil
-end
-
---
--- Gets a list of tiles an object is overlapping
--- 
-function get_overlapping_tiles(game_obj, width, height)
-	local overlaps = {}
-
-	-- Top left
-	local tile = get_map_tile_at_position(game_obj.position)
-	if tile ~= nil then
-		tile.corner = g_corners.top_left
-		tile.col_position = game_obj.position
-		add(overlaps, tile)
-	end
-
-	-- Top right
-	tile = get_map_tile_at_position(game_obj.position + make_vec2(width, 0))
-	if tile ~= nil then
-		tile.corner = g_corners.top_right
-		tile.col_position = game_obj.position + make_vec2(width, 0)
-		add(overlaps, tile)
-	end
-
-	-- Bottom right
-	tile = get_map_tile_at_position(game_obj.position + make_vec2(width, height))
-	if tile ~= nil then
-		tile.corner = g_corners.bottom_right
-		tile.col_position = game_obj.position + make_vec2(width, height)
-		add(overlaps, tile)
-	end
-
-	-- Bottom left
-	local tile = get_map_tile_at_position(game_obj.position + make_vec2(0, height))
-	if tile ~= nil then
-		tile.corner = g_corners.bottom_left
-		tile.col_position = game_obj.position + make_vec2(0, height)
-		add(overlaps, tile)
-	end
-
-	return overlaps
 end
 
 --
@@ -266,6 +318,10 @@ function get_map_tile_at_position(position)
 
 	local cell = position_to_cell(position)
 	return { sprite = mget(cell.x, cell.y), cell = cell, position = cell_to_position(cell.x, cell.y) }
+end
+
+function is_cell_collidable(cell_x, cell_y)
+	return fget(mget(cell_x, cell_y), 0)
 end
 
 --
@@ -581,7 +637,7 @@ end
 -- Logger
 --
 g_log = {
-	show_debug = false,
+	show_debug = true,
 	log_data = {}
 }
 
@@ -590,6 +646,10 @@ g_log = {
 --
 g_log.log = function(message)
 	add(g_log.log_data, message)
+end
+
+g_log.syslog = function(message)
+	printh(message, 'debug.log')
 end
 
 --
