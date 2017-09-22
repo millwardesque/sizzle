@@ -20,8 +20,8 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 . Gravity
 . Player vs. wall / tile collisions
 . Player walking
-- Tile grid
-- Tiles with cooldown
+. Tile grid
+. Tiles with cooldown
 - UI showing tile cooldown
 - Level timer
 - Player jumping

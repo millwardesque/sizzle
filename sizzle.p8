@@ -211,11 +211,13 @@ end
 --
 -- Creates a timer for a single tile
 --
-function make_tile(name, max_duration)
+function make_tile(name, cell_x, cell_y, max_duration)
 	local t = make_game_object(name, 0, 0)
 	t.state = 'idle'
 	t.elapsed = 0
 	t.max_duration = max_duration
+	t.cell_x = cell_x
+	t.cell_y = cell_y
 
 	t.update = function(self)
 		if self.state == 'idle' then
@@ -256,15 +258,19 @@ function make_tile_manager(width, height)
 	tile_manager.width = width
 	tile_manager.height = height
 	tile_manager.tile_timer_duration = 10
+	tile_manager.active_tiles = {}
 
 	tile_manager.init = function(self) 
 		-- Populate the tiles for collidable tiles
 		self.tiles = {}
+		self.active_tiles = {}
+
 		for x = 0, self.width - 1 do
 			add(self.tiles, {})
 			for y = 0, self.height - 1 do
 				if is_cell_collidable(x, y) then
-					add(self.tiles[x + 1], make_tile("Tile-"..x.."-"..y, self.tile_timer_duration))
+					add(self.tiles[x + 1], make_tile("Tile-"..x.."-"..y, x, y, self.tile_timer_duration))
+					add(self.active_tiles, self.tiles[x + 1][y + 1])
 					add(g_state.scene, self.tiles[x + 1][y + 1])
 				else
 					add(self.tiles[x + 1], 0) -- Can't add nil to a table for some reason.
@@ -274,14 +280,12 @@ function make_tile_manager(width, height)
 	end
 
 	tile_manager.update = function(self)
-		for x = 1, self.width do
-			for y = 1, self.height do
-				local tile = self.tiles[x][y]
-				if tile ~= 0 and tile.state == 'destroyed' then
-					del(g_state.scene, tile)
-					mset(x - 1, y - 1, 0)
-					self.tiles[x][y] = 0
-				end
+		for tile in all(self.active_tiles) do
+			if tile ~= 0 and tile.state == 'destroyed' then
+				del(self.active_tiles, tile)
+				del(g_state.scene, tile)
+				mset(tile.cell_x, tile.cell_y, 0)
+				self.tiles[tile.cell_x + 1][tile.cell_y + 1] = 0
 			end
 		end
 	end
