@@ -18,6 +18,7 @@ ingame_state = {
 	main_camera = nil,
 	player = nil,
 	tile_manager = nil,
+	game_timer = 0,
 
 	enter = function(self)
 		self.scene = {}
@@ -40,9 +41,13 @@ ingame_state = {
 		local player_speed = 2
 		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed)
 		add(self.scene, self.player)
+
+		game_timer = 0
 	end,
 
 	update = function(self)
+		self.game_timer += 1
+
 		-- Process input
 		self.player.velocity = make_vec2(0, 0)
 		if btn(0) then
@@ -80,6 +85,8 @@ ingame_state = {
 
 	draw = function(self)
 		g_renderer.render()
+
+		print("time: "..flr(self.game_timer / 30))
 	end,
 
 	exit = function(self)

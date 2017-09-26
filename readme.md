@@ -12,6 +12,7 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
   - Jump slash
   - Wall-jump
   - Wall-slide (warms up wall tiles just like standing on the ground)
+  - Heat-up (warms up tiles even more)
 - Obstacles
   - Pit spikes
   - Wall spikes
@@ -22,8 +23,8 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 . Player walking
 . Tile grid
 . Tiles with cooldown
-- UI showing tile cooldown
-- Level timer
+. UI showing tile cooldown
+. Level timer
 - Player jumping
 - Ceiling tile collisions
 - Camera follows player
@@ -32,6 +33,7 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 - Main menu
 - Game over screen
 - Game reset
+- Non-destructible collision tiles
 
 ==Important==
 - Juicy death animation
