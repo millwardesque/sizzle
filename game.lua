@@ -208,26 +208,33 @@ end
 --
 -- Creates a timer for a single tile
 --
-function make_tile(name, cell_x, cell_y, max_duration)
+function make_tile(name, cell_x, cell_y, max_duration, cooldown_rate, warmup_rate)
 	local t = make_game_object(name, 0, 0)
 	t.state = 'idle'
 	t.elapsed = 0
 	t.max_duration = max_duration
+	t.cooldown_rate = cooldown_rate
+	t.warmup_rate = warmup_rate
 	t.cell_x = cell_x
 	t.cell_y = cell_y
+	t.sprites = {16, 17, 18}
 
 	t.update = function(self)
+		elapsed_changed = false
+
 		if self.state == 'idle' then
 			-- Do nothing.
 		elseif self.state == 'cooldown' then
-			self.elapsed -= 1
+			self.elapsed -= self.cooldown_rate
 
 			if self.elapsed <= 0 then
 				self.elapsed = 0
 				self.state = 'idle'
 			end
+
+			elapsed_changed = true
 		elseif self.state == 'warmup' then
-			self.elapsed += 1
+			self.elapsed += self.warmup_rate
 
 			if self.elapsed >= self.max_duration then
 				self.elapsed = self.max_duration
@@ -235,16 +242,28 @@ function make_tile(name, cell_x, cell_y, max_duration)
 			else
 				self.state = 'cooldown'	-- This can be changed to warmup next frame if the tile is activated again
 			end
+			elapsed_changed = true
 		elseif self.state == 'destroyed' then
 			-- @TODO Destroy tile
 		end
+
+		if elapsed_changed then
+			 if self.elapsed < 0.2 then
+			 	mset(self.cell_x, self.cell_y, self.sprites[1])
+			 elseif self.elapsed / self.max_duration > 0.6 then
+			 	mset(self.cell_x, self.cell_y, self.sprites[3])
+			 elseif self.elapsed / self.max_duration <= 0.6 then
+			 	mset(self.cell_x, self.cell_y, self.sprites[2])
+			 end
+		end
+
 	end
 
 	return t
 end
 
 function tile_str(tile)
-	return tile.name.." : s = "..tile.state.." : e = "..tile.elapsed
+	return tile.name..": s= "..tile.state.." e= "..tile.elapsed.."/"..tile.max_duration
 end
 
 --
@@ -254,7 +273,9 @@ function make_tile_manager(width, height)
 	tile_manager.tiles = {}
 	tile_manager.width = width
 	tile_manager.height = height
-	tile_manager.tile_timer_duration = 10
+	tile_manager.tile_timer_duration = 60
+	tile_manager.cooldown_rate = 0.5
+	tile_manager.warmup_rate = 1
 	tile_manager.active_tiles = {}
 
 	tile_manager.init = function(self) 
@@ -266,7 +287,7 @@ function make_tile_manager(width, height)
 			add(self.tiles, {})
 			for y = 0, self.height - 1 do
 				if is_cell_collidable(x, y) then
-					add(self.tiles[x + 1], make_tile("Tile-"..x.."-"..y, x, y, self.tile_timer_duration))
+					add(self.tiles[x + 1], make_tile("Tile-"..x.."-"..y, x, y, self.tile_timer_duration, self.cooldown_rate, self.warmup_rate))
 					add(self.active_tiles, self.tiles[x + 1][y + 1])
 					add(g_state.scene, self.tiles[x + 1][y + 1])
 				else
