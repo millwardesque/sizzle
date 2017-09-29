@@ -37,7 +37,7 @@ ingame_state = {
 		local player_sprite = 1
 		local player_speed = 2
 		local player_jump_power = 2.5
-		local player_jump_duration = 4
+		local player_jump_duration = 6
 		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed, player_jump_power, player_jump_duration)
 		add(self.scene, self.player)
 
@@ -57,8 +57,10 @@ ingame_state = {
 			self.player.velocity.x += self.player.walk_speed
 		end
 
-		if btn(4) then
+		if btn(4) and not self.player.is_jumping then
 			self.player.jump(self.player)
+		elseif not btn(4) and self.player.is_jumping then
+			self.player.stop_jump(self.player)
 		end
 
 		-- @DEBUG Reset the game
@@ -124,6 +126,11 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		end
 	end
 
+	new_player.stop_jump = function(self)
+		self.is_jumping = false
+		self.jump_elapsed = 0
+	end
+
 	-- Update player
 	new_player.update = function (self)
 
@@ -132,7 +139,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 				new_player.velocity += g_physics.gravity * -self.jump_power
 				self.jump_elapsed += 1
 			else
-				self.is_jumping = false
+				self.stop_jump(self)
 			end
 		end
 

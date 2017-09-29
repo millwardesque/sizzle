@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 8
+version 10
 __lua__
 g_state = nil
 
@@ -11,7 +11,7 @@ g_corners = {
 }
 
 --
--- Encapsulates the ingame state
+-- encapsulates the ingame state
 --
 ingame_state = {
 	scene = nil,
@@ -25,22 +25,22 @@ ingame_state = {
 
 		g_physics.init(g_physics)
 
-		-- Create the tiles
+		-- create the tiles
 		self.tile_manager = make_tile_manager(128, 128)
 		self.tile_manager.init(self.tile_manager)
 		add(self.scene, self.tile_manager)
 
-		-- Make the camera
+		-- make the camera
 		self.main_camera = make_camera(0, 0, 128, 128, 0, 0)
 
-		-- Make the player
+		-- make the player
 		local player_height = 8
-		local player_start_x = 2 * 128 / 4 -- @TODO Replace with per-level definition
-		local player_start_y = 1 * 128 / 4 -- @TODO Replace with per-level definition
+		local player_start_x = 2 * 128 / 4 -- @todo replace with per-level definition
+		local player_start_y = 1 * 128 / 4 -- @todo replace with per-level definition
 		local player_sprite = 1
 		local player_speed = 2
 		local player_jump_power = 2.5
-		local player_jump_duration = 4
+		local player_jump_duration = 6
 		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed, player_jump_power, player_jump_duration)
 		add(self.scene, self.player)
 
@@ -50,7 +50,7 @@ ingame_state = {
 	update = function(self)
 		self.game_timer += 1
 
-		-- Process input
+		-- process input
 		self.player.velocity = make_vec2(0, 0)
 		if btn(0) then
 			self.player.velocity.x -= self.player.walk_speed
@@ -60,24 +60,26 @@ ingame_state = {
 			self.player.velocity.x += self.player.walk_speed
 		end
 
-		if btn(4) then
+		if btn(4) and not self.player.is_jumping then
 			self.player.jump(self.player)
+		elseif not btn(4) and self.player.is_jumping then
+			self.player.stop_jump(self.player)
 		end
 
-		-- @DEBUG Reset the game
+		-- @debug reset the game
 		if btnp(5) then
 			set_game_state(ingame_state)
 			return
 		end
 
-		-- Update game objects
+		-- update game objects
 		for game_obj in all(self.scene) do
 			if (game_obj.update) then
 				game_obj.update(game_obj)
 			end
 		end
 
-		-- @TODO Collision detection
+		-- @todo collision detection
 	end,
 
 	draw = function(self)
@@ -91,12 +93,12 @@ ingame_state = {
 }
 
 --
--- Create a player
+-- create a player
 --
 function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jump_duration)
 	local new_player = make_game_object(name, start_x, start_y)
 
-	-- Physics
+	-- physics
 	new_player.velocity = make_vec2(0, 0)
 	new_player.old_position = make_vec2(start_x, start_y)
 	new_player.jump_power = jump_power
@@ -105,7 +107,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	new_player.jump_duration = jump_duration
 	new_player.is_on_ground = false
 
-	-- Animations
+	-- animations
 	local player_anims = {
 		idle = { 1 },
 		walk = { 2, 3 },
@@ -114,10 +116,10 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 	attach_anim_spr_controller(new_player, 4, player_anims, "idle", 0)
 
-	-- Game stats
+	-- game stats
 	new_player.walk_speed = walk_speed
 	attach_renderable(new_player, sprite)
-	new_player.renderable.draw_order = 1	-- Draw player after other in-game objects
+	new_player.renderable.draw_order = 1	-- draw player after other in-game objects
 
 	new_player.jump = function(self)
 		if not self.is_jumping and self.is_on_ground then
@@ -127,7 +129,12 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		end
 	end
 
-	-- Update player
+	new_player.stop_jump = function(self)
+		self.is_jumping = false
+		self.jump_elapsed = 0
+	end
+
+	-- update player
 	new_player.update = function (self)
 
 		if (self.is_jumping) then
@@ -135,7 +142,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 				new_player.velocity += g_physics.gravity * -self.jump_power
 				self.jump_elapsed += 1
 			else
-				self.is_jumping = false
+				self.stop_jump(self)
 			end
 		end
 
@@ -164,10 +171,10 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 		update_anim_spr_controller(self.anim_controller, self)
 
-		-- @DEBUG g_log.log("player: "..vec2_str(self.position))
+		-- @debug g_log.log("player: "..vec2_str(self.position))
 	end
 
-	-- Updates player physics
+	-- updates player physics
 	new_player.update_physics = function(self)
 		self.velocity += g_physics.gravity
 
@@ -191,7 +198,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		end
 	end
 
-	-- Checks for collisions with the player
+	-- checks for collisions with the player
 	new_player.check_for_collisions = function(self, collisions, iteration)
 		local max_iterations = 3
 		if iteration > max_iterations then 
@@ -200,17 +207,17 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 		local direction = vec2_normalized(self.velocity)
 
-		-- Check if left foot is on ground
+		-- check if left foot is on ground
 		local old_left_foot = self.old_position + make_vec2(8 * 0.33, 7)
 		local left_foot = self.position + make_vec2(8 * 0.33, 7)
 		local left_foot_intersection = check_swept_collision(old_left_foot, left_foot)
 
-		-- Check if right foot is on ground
+		-- check if right foot is on ground
 		local old_right_foot = self.old_position + make_vec2(8 * 0.66, 7)
 		local right_foot = self.position + make_vec2(8 * 0.66, 7)
 		local right_foot_intersection = check_swept_collision(old_right_foot, right_foot)
 
-		-- Adjust position to account for the collision
+		-- adjust position to account for the collision
 		if left_foot_intersection ~= nil then
 			self.position.y = left_foot_intersection.position.y - 8
 			left_foot_intersection.is_ground_collision = true
@@ -223,17 +230,17 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 			return self.check_for_collisions(self, collisions, iteration + 1)
 		end
 
-		-- Check if left side of head hit the ceiling
+		-- check if left side of head hit the ceiling
 		local old_left_head = self.old_position + make_vec2(8 * 0.33, 0)
 		local left_head = self.position + make_vec2(8 * 0.33, 0)
 		local left_head_intersection = check_swept_collision(old_left_head, left_head)
 
-		-- Check if right side of head hit the ceiling
+		-- check if right side of head hit the ceiling
 		local old_right_head = self.old_position + make_vec2(8 * 0.66, 0)
 		local right_head = self.position + make_vec2(8 * 0.66, 0)
 		local right_head_intersection = check_swept_collision(old_right_head, right_head)
 
-		-- Adjust position to account for the collision
+		-- adjust position to account for the collision
 		if left_head_intersection ~= nil then
 			self.position.y = left_head_intersection.position.y + 8
 			add(collisions, left_head_intersection)
@@ -244,24 +251,24 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 			return self.check_for_collisions(self, collisions, iteration + 1)
 		end
 
-		-- Check if the left side of the head is against tile
+		-- check if the left side of the head is against tile
 		local old_left_hand = clone_vec2(self.old_position)
 		local left_hand = clone_vec2(self.position + make_vec2(0, 8 * 0.5))
 		local left_hand_intersection = check_swept_collision(old_left_hand, left_hand)
 
-		-- Adjust position to account for the collision
+		-- adjust position to account for the collision
 		if left_hand_intersection ~= nil then
 			self.position.x = left_hand_intersection.position.x + 8
 			add(collisions, left_hand_intersection)
 			return self.check_for_collisions(self, collisions, iteration + 1)
 		end
 
-		-- Check if the right side of the head is against tile
+		-- check if the right side of the head is against tile
 		local old_right_hand = self.old_position + make_vec2(7, 0)
 		local right_hand = clone_vec2(self.position) + make_vec2(7, 8 * 0.5)
 		local right_hand_intersection = check_swept_collision(old_right_hand, right_hand)
 
-		-- Adjust position to account for the collision
+		-- adjust position to account for the collision
 		if right_hand_intersection ~= nil then
 			self.position.x = right_hand_intersection.position.x - 8
 			add(collisions, right_hand_intersection)
@@ -275,7 +282,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 end
 
 --
--- Creates a timer for a single tile
+-- creates a timer for a single tile
 --
 function make_tile(name, cell_x, cell_y, max_duration, cooldown_rate, warmup_rate)
 	local t = make_game_object(name, 0, 0)
@@ -292,7 +299,7 @@ function make_tile(name, cell_x, cell_y, max_duration, cooldown_rate, warmup_rat
 		elapsed_changed = false
 
 		if self.state == 'idle' then
-			-- Do nothing.
+			-- do nothing.
 		elseif self.state == 'cooldown' then
 			self.elapsed -= self.cooldown_rate
 
@@ -309,11 +316,11 @@ function make_tile(name, cell_x, cell_y, max_duration, cooldown_rate, warmup_rat
 				self.elapsed = self.max_duration
 				self.state = 'destroyed'
 			else
-				self.state = 'cooldown'	-- This can be changed to warmup next frame if the tile is activated again
+				self.state = 'cooldown'	-- this can be changed to warmup next frame if the tile is activated again
 			end
 			elapsed_changed = true
 		elseif self.state == 'destroyed' then
-			-- @TODO Destroy tile
+			-- @todo destroy tile
 		end
 
 		if elapsed_changed then
@@ -336,7 +343,7 @@ function tile_str(tile)
 end
 
 --
--- Creates a manager for a grid of tiles
+-- creates a manager for a grid of tiles
 function make_tile_manager(width, height)
 	local tile_manager = make_game_object("tile manager", start_x, start_y)
 	tile_manager.tiles = {}
@@ -348,7 +355,7 @@ function make_tile_manager(width, height)
 	tile_manager.active_tiles = {}
 
 	tile_manager.init = function(self) 
-		-- Populate the tiles for collidable tiles
+		-- populate the tiles for collidable tiles
 		self.tiles = {}
 		self.active_tiles = {}
 
@@ -356,12 +363,12 @@ function make_tile_manager(width, height)
 			add(self.tiles, {})
 			for y = 0, self.height - 1 do
 				if is_cell_collidable(x, y) then
-					-- @TODO Reset to default tile instead of warmed-up tile.
-					add(self.tiles[x + 1], make_tile("Tile-"..x.."-"..y, x, y, self.tile_timer_duration, self.cooldown_rate, self.warmup_rate))
+					-- @todo reset to default tile instead of warmed-up tile.
+					add(self.tiles[x + 1], make_tile("tile-"..x.."-"..y, x, y, self.tile_timer_duration, self.cooldown_rate, self.warmup_rate))
 					add(self.active_tiles, self.tiles[x + 1][y + 1])
 					add(g_state.scene, self.tiles[x + 1][y + 1])
 				else
-					add(self.tiles[x + 1], 0) -- Can't add nil to a table for some reason.
+					add(self.tiles[x + 1], 0) -- can't add nil to a table for some reason.
 				end
 			end
 		end
@@ -382,7 +389,7 @@ function make_tile_manager(width, height)
 end
 
 -- 
--- Check for collisions between a dynamic position and a the tilemap using a sweeping algorithm
+-- check for collisions between a dynamic position and a the tilemap using a sweeping algorithm
 --
 function check_swept_collision(old_position, new_position)
 	local direction = vec2_normalized(new_position - old_position)
@@ -393,7 +400,7 @@ function check_swept_collision(old_position, new_position)
 		if tile ~= nil then
 			-- g_log.log("s: "..vec2_str(sweeper).." tc: "..vec2_str(tile.cell))
 			if fget(tile.sprite, 0) then
-				-- g_log.log("COLLISION")
+				-- g_log.log("collision")
 			 	return tile
 			end
 		end
@@ -404,7 +411,7 @@ function check_swept_collision(old_position, new_position)
 end
 
 --
--- Gets the map tile at a pixel position
+-- gets the map tile at a pixel position
 --
 function get_map_tile_at_position(position)
 	if position.x < 0 or position.y < 0 then
@@ -420,7 +427,7 @@ function is_cell_collidable(cell_x, cell_y)
 end
 
 --
--- Converts a worldspace position to map cell coords
+-- converts a worldspace position to map cell coords
 --
 function position_to_cell(position)
 	local cell_x = flr(position.x / 8)
@@ -430,7 +437,7 @@ function position_to_cell(position)
 end
 
 --
--- Converts map cell coords to a worldspace position
+-- converts map cell coords to a worldspace position
 --
 function cell_to_position(x, y)
 	local world_x = x * 8
@@ -440,7 +447,7 @@ function cell_to_position(x, y)
 end
 
 --
--- Sets the active game state
+-- sets the active game state
 --
 function set_game_state(game_state)
 	if g_state ~= nil and g_state.exit then
@@ -455,7 +462,7 @@ function set_game_state(game_state)
 end
 
 -- 
--- Game Object
+-- game object
 --
 function make_game_object(name, pos_x, pos_y)
 	local game_obj = {
@@ -466,7 +473,7 @@ function make_game_object(name, pos_x, pos_y)
 end
 
 --
--- Renderable maker.
+-- renderable maker.
 --
 function attach_renderable(game_obj, sprite)
 	local renderable = {
@@ -480,33 +487,33 @@ function attach_renderable(game_obj, sprite)
 		palette = nil
 	}
 
-	-- Default rendering function
+	-- default rendering function
 	renderable.render = function(self, position)
 
-		-- Set the palette
+		-- set the palette
 		if (self.palette) then
-			-- Set colours
+			-- set colours
 			for i = 0, 15 do
 				pal(i, self.palette[i + 1])
 			end
 
-			-- Set transparencies
+			-- set transparencies
 			for i = 17, #self.palette do
 				palt(self.palette[i], true)
 			end
 		end
 
-		-- Draw
+		-- draw
 		spr(self.sprite, position.x, position.y, self.sprite_width, self.sprite_height, self.flip_x, self.flip_y)
 
-		-- Reset the palette
+		-- reset the palette
 		if (self.palette) then
 			pal()
 			palt()
 		end
 	end
 
-	-- Save the default render function in case the object wants to use it in an overridden render function.
+	-- save the default render function in case the object wants to use it in an overridden render function.
 	renderable.default_render = renderable.render
 
 	game_obj.renderable = renderable;
@@ -514,15 +521,15 @@ function attach_renderable(game_obj, sprite)
 end
 
 --
--- Renderer subsystem
+-- renderer subsystem
 --
 g_renderer = {}
 
 --
--- Main render pipeline
+-- main render pipeline
 --
 g_renderer.render = function()
-	-- Collect renderables 
+	-- collect renderables 
 	local renderables = {};
 	for game_obj in all(g_state.scene) do
 		if (game_obj.renderable) then
@@ -530,10 +537,10 @@ g_renderer.render = function()
 		end
 	end
 
-	-- Sort by draw-order
+	-- sort by draw-order
 	quicksort_draw_order(renderables)
 
-	-- Draw the scene
+	-- draw the scene
 	camera_draw_start(g_state.main_camera)
 	
 	map(0, 0, 0, 0, 128, 128) -- draw the whole map and let the clipping region remove unnecessary bits
@@ -546,14 +553,14 @@ g_renderer.render = function()
 end
 
 --
--- Sort a renderable array by draw-order
+-- sort a renderable array by draw-order
 -- 
 function quicksort_draw_order(list)
 	quicksort_draw_order_helper(list, 1, #list)
 end
 
 --
--- Helper function for sorting renderables by draw-order
+-- helper function for sorting renderables by draw-order
 function quicksort_draw_order_helper(list, low, high)
 	if (low < high) then
 		local p = quicksort_draw_order_partition(list, low, high)
@@ -563,7 +570,7 @@ function quicksort_draw_order_helper(list, low, high)
 end
 
 --
--- Partition a renderable list by draw_order
+-- partition a renderable list by draw_order
 --
 function quicksort_draw_order_partition(list, low, high)
 	local pivot = list[high]
@@ -588,7 +595,7 @@ function quicksort_draw_order_partition(list, low, high)
 end
 
 --
--- Camera
+-- camera
 --
 function make_camera(draw_x, draw_y, draw_width, draw_height, shoot_x, shoot_y)
 	local t = {
@@ -617,7 +624,7 @@ function camera_draw_end(cam)
 end
 
 --
--- Animated sprite controller
+-- animated sprite controller
 --
 function attach_anim_spr_controller(game_obj, frames_per_cell, animations, start_anim, start_frame_offset)
 	game_obj.anim_controller = {
@@ -661,7 +668,7 @@ function set_anim_spr_animation(controller, animation)
 end
 
 --
--- Physics
+-- physics
 --
 g_physics = {
 	gravity = nil,
@@ -673,7 +680,7 @@ end
 
 
 --
--- 2d Vector
+-- 2d vector
 --
 local vec2_meta = {}
 function vec2_meta.__add(a, b)
@@ -729,7 +736,7 @@ function vec2_str(v)
 end
 
 --
--- Logger
+-- logger
 --
 g_log = {
 	show_debug = true,
@@ -737,7 +744,7 @@ g_log = {
 }
 
 --
--- Logs a message
+-- logs a message
 --
 g_log.log = function(message)
 	add(g_log.log_data, message)
@@ -748,7 +755,7 @@ g_log.syslog = function(message)
 end
 
 --
--- Renders the log
+-- renders the log
 --
 g_log.render = function()
 	if (g_log.show_debug) then
@@ -760,32 +767,32 @@ g_log.render = function()
 end
 
 --
--- Clears the log
+-- clears the log
 --
 g_log.clear = function()
 	g_log.log_data = {}
 end
 
 --
--- Global init function.
+-- global init function.
 --
 function _init()
 	set_game_state(ingame_state)
 end
 
 --
--- Global update function
+-- global update function
 --
 function _update()
 	if g_state ~= nil then
 		g_state.update(g_state)
 	end
 	
-	g_log.log("CPU: "..stat(1))
+	g_log.log("cpu: "..stat(1))
 end
 
 --
--- Global draw function
+-- global draw function
 --
 function _draw()
 	cls()
@@ -794,7 +801,7 @@ function _draw()
 		g_state.draw(g_state)
 	end
 
-	-- Draw debug log
+	-- draw debug log
 	g_log.render()
 	g_log.clear()
 end
@@ -941,11 +948,11 @@ __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000001010101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000001010101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000010100000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000001010101000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000010000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000101000000010100000001010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
