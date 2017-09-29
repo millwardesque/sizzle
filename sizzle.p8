@@ -39,7 +39,9 @@ ingame_state = {
 		local player_start_y = 1 * 128 / 4 -- @TODO Replace with per-level definition
 		local player_sprite = 1
 		local player_speed = 2
-		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed)
+		local player_jump_power = 2.5
+		local player_jump_duration = 4
+		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed, player_jump_power, player_jump_duration)
 		add(self.scene, self.player)
 
 		game_timer = 0
@@ -58,17 +60,12 @@ ingame_state = {
 			self.player.velocity.x += self.player.walk_speed
 		end
 
-		-- @DEBUG
-		if btn(2) then
-			self.player.velocity.y -= self.player.walk_speed
-		end
-
-		if btn(3) then
-			self.player.velocity.y += self.player.walk_speed
+		if btn(4) then
+			self.player.jump(self.player)
 		end
 
 		-- @DEBUG Reset the game
-		if btn(4) then
+		if btnp(5) then
 			set_game_state(ingame_state)
 			return
 		end
@@ -96,17 +93,23 @@ ingame_state = {
 --
 -- Create a player
 --
-function make_player(name, start_x, start_y, sprite, walk_speed)
+function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jump_duration)
 	local new_player = make_game_object(name, start_x, start_y)
 
 	-- Physics
 	new_player.velocity = make_vec2(0, 0)
 	new_player.old_position = make_vec2(start_x, start_y)
+	new_player.jump_power = jump_power
+	new_player.is_jumping = false
+	new_player.jump_elapsed = 0
+	new_player.jump_duration = jump_duration
+	new_player.is_on_ground = false
 
 	-- Animations
 	local player_anims = {
 		idle = { 1 },
-		walk = { 2, 3 }
+		walk = { 2, 3 },
+		jump = { 4 }
 	}
 
 	attach_anim_spr_controller(new_player, 4, player_anims, "idle", 0)
@@ -116,24 +119,52 @@ function make_player(name, start_x, start_y, sprite, walk_speed)
 	attach_renderable(new_player, sprite)
 	new_player.renderable.draw_order = 1	-- Draw player after other in-game objects
 
+	new_player.jump = function(self)
+		if not self.is_jumping and self.is_on_ground then
+			self.is_jumping = true
+			self.jump_elapsed = 0
+			set_anim_spr_animation(self.anim_controller, 'jump')
+		end
+	end
+
 	-- Update player
 	new_player.update = function (self)
+
+		if (self.is_jumping) then
+			if self.jump_elapsed < self.jump_duration then
+				new_player.velocity += g_physics.gravity * -self.jump_power
+				self.jump_elapsed += 1
+			else
+				self.is_jumping = false
+			end
+		end
+
 		self.update_physics(self)
 
-		if self.velocity.x < 0 then
-			self.renderable.flip_x = true
-			set_anim_spr_animation(self.anim_controller, 'walk')
-		elseif self.velocity.x > 0 then
-			self.renderable.flip_x = false
-			set_anim_spr_animation(self.anim_controller, 'walk')
-		elseif self.velocity.x == 0 then
-			self.renderable.flip_x = false
-			set_anim_spr_animation(self.anim_controller, 'idle')
+		if (self.is_jumping) then
+			if self.velocity.x < 0 then
+				self.renderable.flip_x = true
+				set_anim_spr_animation(self.anim_controller, 'jump')
+			elseif self.velocity.x >= 0 then
+				self.renderable.flip_x = false
+				set_anim_spr_animation(self.anim_controller, 'jump')
+			end
+		else
+			if self.velocity.x < 0 then
+				self.renderable.flip_x = true
+				set_anim_spr_animation(self.anim_controller, 'walk')
+			elseif self.velocity.x > 0 then
+				self.renderable.flip_x = false
+				set_anim_spr_animation(self.anim_controller, 'walk')
+			elseif self.velocity.x == 0 then
+				self.renderable.flip_x = false
+				set_anim_spr_animation(self.anim_controller, 'idle')
+			end
 		end
 
 		update_anim_spr_controller(self.anim_controller, self)
 
-		g_log.log("player: "..vec2_str(self.position))
+		-- @DEBUG g_log.log("player: "..vec2_str(self.position))
 	end
 
 	-- Updates player physics
@@ -144,10 +175,19 @@ function make_player(name, start_x, start_y, sprite, walk_speed)
 		self.position += self.velocity
 
 		local collisions = self.check_for_collisions(self, {}, 1)
+		self.is_on_ground = false
 		for col in all(collisions) do
 			local tile = g_state.tile_manager.tiles[col.cell.x + 1][col.cell.y + 1]
 			g_log.log(tile_str(tile))
 			tile.state = "warmup"
+
+			if col.is_ground_collision then
+				self.is_on_ground = true
+
+				if self.is_jumping then
+					self.is_jumping = false
+				end
+			end
 		end
 	end
 
@@ -175,10 +215,12 @@ function make_player(name, start_x, start_y, sprite, walk_speed)
 		-- Adjust position to account for the collision
 		if left_foot_intersection ~= nil then
 			self.position.y = left_foot_intersection.position.y - 8
+			left_foot_intersection.is_ground_collision = true
 			add(collisions, left_foot_intersection)
 			return self.check_for_collisions(self, collisions, iteration + 1)
 		elseif right_foot_intersection ~= nil then
 			self.position.y = right_foot_intersection.position.y - 8
+			right_foot_intersection.is_ground_collision = true
 			add(collisions, right_foot_intersection)
 			return self.check_for_collisions(self, collisions, iteration + 1)
 		end
@@ -297,6 +339,7 @@ function make_tile_manager(width, height)
 			add(self.tiles, {})
 			for y = 0, self.height - 1 do
 				if is_cell_collidable(x, y) then
+					-- @TODO Reset to default tile instead of warmed-up tile.
 					add(self.tiles[x + 1], make_tile("Tile-"..x.."-"..y, x, y, self.tile_timer_duration, self.cooldown_rate, self.warmup_rate))
 					add(self.active_tiles, self.tiles[x + 1][y + 1])
 					add(g_state.scene, self.tiles[x + 1][y + 1])
@@ -608,7 +651,7 @@ g_physics = {
 }
 
 g_physics.init = function(self)
-	self.gravity = make_vec2(0, 4)
+	self.gravity = make_vec2(0, 3.5)
 end
 
 
@@ -739,14 +782,14 @@ function _draw()
 	g_log.clear()
 end
 __gfx__
-00000000009999000099990000999900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000009ffff9009fffff009fffff0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-007007000f8ff8f009f8ff8009f8ff80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000770000ffffff009fffff009fffff0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0007700000ffff0000ffff0000ffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700088888800888888008888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000f8888f00f8888f00f8888f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000090090000900a0000a00900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000009999000099990000999900009999000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000009ffff9009fffff009fffff009f8ff800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+007007000f8ff8f009f8ff8009f8ff8009fffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000770000ffffff009fffff009fffff009fffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0007700000ffff0000ffff0000ffff00f0ffff0f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700088888800888888008888880088888800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000f8888f00f8888f00f8888f000888a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000090090000900a0000a00900009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4444444499999999aaaaaaaa00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4545454495959599a5a5a5aa00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4454545499595959aa5a5a5a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
