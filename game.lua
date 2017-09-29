@@ -189,7 +189,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 				self.is_on_ground = true
 
 				if self.is_jumping then
-					self.is_jumping = false
+					self.stop_jump(self)
 				end
 			end
 		end
@@ -216,15 +216,19 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 		-- Adjust position to account for the collision
 		if left_foot_intersection ~= nil then
-			self.position.y = left_foot_intersection.position.y - 8
-			left_foot_intersection.is_ground_collision = true
-			add(collisions, left_foot_intersection)
-			return self.check_for_collisions(self, collisions, iteration + 1)
+			if self.position.y > left_foot_intersection.position.y - 8 then
+				self.position.y = left_foot_intersection.position.y - 8
+				left_foot_intersection.is_ground_collision = true
+				add(collisions, left_foot_intersection)
+				return self.check_for_collisions(self, collisions, iteration + 1)
+			end
 		elseif right_foot_intersection ~= nil then
-			self.position.y = right_foot_intersection.position.y - 8
-			right_foot_intersection.is_ground_collision = true
-			add(collisions, right_foot_intersection)
-			return self.check_for_collisions(self, collisions, iteration + 1)
+			if self.position.y > right_foot_intersection.position.y - 8 then
+				self.position.y = right_foot_intersection.position.y - 8
+				right_foot_intersection.is_ground_collision = true
+				add(collisions, right_foot_intersection)
+				return self.check_for_collisions(self, collisions, iteration + 1)
+			end
 		end
 
 		-- Check if left side of head hit the ceiling
@@ -239,13 +243,17 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 		-- Adjust position to account for the collision
 		if left_head_intersection ~= nil then
-			self.position.y = left_head_intersection.position.y + 8
-			add(collisions, left_head_intersection)
-			return self.check_for_collisions(self, collisions, iteration + 1)
+			if self.position.y < left_head_intersection.position.y + 8 then
+				self.position.y = left_head_intersection.position.y + 8
+				add(collisions, left_head_intersection)
+				return self.check_for_collisions(self, collisions, iteration + 1)
+			end
 		elseif right_head_intersection ~= nil then
-			self.position.y = right_head_intersection.position.y + 8
-			add(collisions, right_head_intersection)
-			return self.check_for_collisions(self, collisions, iteration + 1)
+			if self.position.y < right_head_intersection.position.y + 8 then
+				self.position.y = right_head_intersection.position.y + 8
+				add(collisions, right_head_intersection)
+				return self.check_for_collisions(self, collisions, iteration + 1)
+			end
 		end
 
 		-- Check if the left side of the head is against tile
@@ -255,9 +263,11 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 		-- Adjust position to account for the collision
 		if left_hand_intersection ~= nil then
-			self.position.x = left_hand_intersection.position.x + 8
-			add(collisions, left_hand_intersection)
-			return self.check_for_collisions(self, collisions, iteration + 1)
+			if self.position.x < left_hand_intersection.position.x + 8 then
+				self.position.x = left_hand_intersection.position.x + 8
+				add(collisions, left_hand_intersection)
+				return self.check_for_collisions(self, collisions, iteration + 1)
+			end
 		end
 
 		-- Check if the right side of the head is against tile
@@ -267,9 +277,11 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 		-- Adjust position to account for the collision
 		if right_hand_intersection ~= nil then
-			self.position.x = right_hand_intersection.position.x - 8
-			add(collisions, right_hand_intersection)
-			return self.check_for_collisions(self, collisions, iteration + 1)
+			if self.position.x > right_hand_intersection.position.x - 8 then
+				self.position.x = right_hand_intersection.position.x - 8
+				add(collisions, right_hand_intersection)
+				return self.check_for_collisions(self, collisions, iteration + 1)
+			end
 		end
 
 		return collisions
@@ -347,8 +359,8 @@ function make_tile_manager(width, height)
 	tile_manager.width = width
 	tile_manager.height = height
 	tile_manager.tile_timer_duration = 60
-	tile_manager.cooldown_rate = 0.5
-	tile_manager.warmup_rate = 1
+	tile_manager.cooldown_rate = 1
+	tile_manager.warmup_rate = 1.5
 	tile_manager.active_tiles = {}
 
 	tile_manager.init = function(self) 
