@@ -201,13 +201,11 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		local direction = vec2_normalized(self.velocity)
 
 		-- Check if left foot is on ground
-		-- g_log.log(iteration..": LF")
 		local old_left_foot = self.old_position + make_vec2(8 * 0.33, 7)
 		local left_foot = self.position + make_vec2(8 * 0.33, 7)
 		local left_foot_intersection = check_swept_collision(old_left_foot, left_foot)
 
 		-- Check if right foot is on ground
-		-- g_log.log(iteration..": RF")
 		local old_right_foot = self.old_position + make_vec2(8 * 0.66, 7)
 		local right_foot = self.position + make_vec2(8 * 0.66, 7)
 		local right_foot_intersection = check_swept_collision(old_right_foot, right_foot)
@@ -225,29 +223,48 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 			return self.check_for_collisions(self, collisions, iteration + 1)
 		end
 
-		-- Check if the left side of the head is against tile
-		-- g_log.log(iteration..": LH")
-		local old_left_head = clone_vec2(self.old_position)
-		local left_head = clone_vec2(self.position)
+		-- Check if left side of head hit the ceiling
+		local old_left_head = self.old_position + make_vec2(8 * 0.33, 0)
+		local left_head = self.position + make_vec2(8 * 0.33, 0)
 		local left_head_intersection = check_swept_collision(old_left_head, left_head)
 
-		-- Adjust position to account for the collision
-		if left_head_intersection ~= nil then
-			self.position.x = left_head_intersection.position.x + 8
-			add(collisions, left_head_intersection)
-			return self.check_for_collisions(self, collisions, iteration + 1)
-		end
-
-		-- g_log.log(iteration..": RH")
-		-- Check if the right side of the head is against tile
-		local old_right_head = self.old_position + make_vec2(7, 0)
-		local right_head = clone_vec2(self.position) + make_vec2(7, 0)
+		-- Check if right side of head hit the ceiling
+		local old_right_head = self.old_position + make_vec2(8 * 0.66, 0)
+		local right_head = self.position + make_vec2(8 * 0.66, 0)
 		local right_head_intersection = check_swept_collision(old_right_head, right_head)
 
 		-- Adjust position to account for the collision
-		if right_head_intersection ~= nil then
-			self.position.x = right_head_intersection.position.x - 8
+		if left_head_intersection ~= nil then
+			self.position.y = left_head_intersection.position.y + 8
+			add(collisions, left_head_intersection)
+			return self.check_for_collisions(self, collisions, iteration + 1)
+		elseif right_head_intersection ~= nil then
+			self.position.y = right_head_intersection.position.y + 8
 			add(collisions, right_head_intersection)
+			return self.check_for_collisions(self, collisions, iteration + 1)
+		end
+
+		-- Check if the left side of the head is against tile
+		local old_left_hand = clone_vec2(self.old_position)
+		local left_hand = clone_vec2(self.position + make_vec2(0, 8 * 0.5))
+		local left_hand_intersection = check_swept_collision(old_left_hand, left_hand)
+
+		-- Adjust position to account for the collision
+		if left_hand_intersection ~= nil then
+			self.position.x = left_hand_intersection.position.x + 8
+			add(collisions, left_hand_intersection)
+			return self.check_for_collisions(self, collisions, iteration + 1)
+		end
+
+		-- Check if the right side of the head is against tile
+		local old_right_hand = self.old_position + make_vec2(7, 0)
+		local right_hand = clone_vec2(self.position) + make_vec2(7, 8 * 0.5)
+		local right_hand_intersection = check_swept_collision(old_right_hand, right_hand)
+
+		-- Adjust position to account for the collision
+		if right_hand_intersection ~= nil then
+			self.position.x = right_hand_intersection.position.x - 8
+			add(collisions, right_hand_intersection)
 			return self.check_for_collisions(self, collisions, iteration + 1)
 		end
 
@@ -651,7 +668,7 @@ g_physics = {
 }
 
 g_physics.init = function(self)
-	self.gravity = make_vec2(0, 3.5)
+	self.gravity = make_vec2(0, 3)
 end
 
 
