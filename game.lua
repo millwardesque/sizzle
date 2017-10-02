@@ -20,7 +20,7 @@ ingame_state = {
 	enter = function(self)
 		self.scene = {}
 
-		g_physics.init(g_physics)
+		g_physics.init(g_physics, make_vec2(0, 2.75))
 
 		-- Create the tiles
 		self.tile_manager = make_tile_manager(128, 128)
@@ -36,8 +36,8 @@ ingame_state = {
 		local player_start_y = 1 * 128 / 4 -- @TODO Replace with per-level definition
 		local player_sprite = 1
 		local player_speed = 2
-		local player_jump_power = 2.5
-		local player_jump_duration = 6
+		local player_jump_power = 2.25
+		local player_jump_duration = 7
 		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed, player_jump_power, player_jump_duration)
 		add(self.scene, self.player)
 
@@ -57,10 +57,14 @@ ingame_state = {
 			self.player.velocity.x += self.player.walk_speed
 		end
 
-		if btn(4) and not self.player.is_jumping then
+		if btn(4) and not self.player.is_jumping and not self.player.is_jump_held then
 			self.player.jump(self.player)
 		elseif not btn(4) and self.player.is_jumping then
 			self.player.stop_jump(self.player)
+		end
+
+		if not btn(4) then
+			self.player.is_jump_held = false
 		end
 
 		-- @DEBUG Reset the game
@@ -103,6 +107,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	new_player.jump_elapsed = 0
 	new_player.jump_duration = jump_duration
 	new_player.is_on_ground = false
+	new_player.is_jump_held = false
 
 	-- Animations
 	local player_anims = {
@@ -122,6 +127,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		if not self.is_jumping and self.is_on_ground then
 			self.is_jumping = true
 			self.jump_elapsed = 0
+			self.is_jump_held = true
 			set_anim_spr_animation(self.anim_controller, 'jump')
 		end
 	end
@@ -683,8 +689,8 @@ g_physics = {
 	gravity = nil,
 }
 
-g_physics.init = function(self)
-	self.gravity = make_vec2(0, 3)
+g_physics.init = function(self, gravity)
+	self.gravity = gravity
 end
 
 
