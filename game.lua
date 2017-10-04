@@ -161,6 +161,36 @@ level_end_state = {
 	end,
 }
 
+main_menu_state = {
+	enter = function(self)
+	end,
+
+	update = function(self)
+		if btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5) then
+			set_game_state(ingame_state)
+		end
+	end,
+
+	draw = function(self)
+		-- Draw game-over window
+		camera()
+		clip()
+
+		rectfill(12, 30, 116, 86, 6)
+		rectfill(14, 32, 114, 84, 3)
+		color(7)
+
+		local line_height = 10
+		local print_y = 40
+		print("sizzle!", 52, print_y)
+		print_y += line_height
+		print("press any key to start", 22, print_y)
+	end,
+
+	exit = function(self)
+	end,
+}
+
 --
 -- Create a player
 --
@@ -940,7 +970,7 @@ end
 -- Global init function.
 --
 function _init()
-	set_game_state(ingame_state)
+	set_game_state(main_menu_state)
 end
 
 --
