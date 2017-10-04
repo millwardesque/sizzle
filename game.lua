@@ -7,6 +7,12 @@ g_corners = {
 	bottom_left = 4,
 }
 
+g_flags = {
+	normal = 0,
+	instakill = 1,
+	level_exit = 2,
+}
+
 --
 -- Encapsulates the ingame state
 --
@@ -124,6 +130,36 @@ gameover_state = {
 	end,
 }
 
+level_end_state = {
+	enter = function(self)
+	end,
+
+	update = function(self)
+		if btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5) then
+			set_game_state(ingame_state)
+		end
+	end,
+
+	draw = function(self)
+		-- Draw game-over window
+		camera()
+		clip()
+
+		rectfill(12, 30, 116, 86, 6)
+		rectfill(14, 32, 114, 84, 3)
+		color(7)
+
+		local line_height = 10
+		local print_y = 40
+		print("level complete!", 36, print_y)
+		print_y += line_height
+		print("press any key", 38, print_y)
+	end,
+
+	exit = function(self)
+	end,
+}
+
 --
 -- Create a player
 --
@@ -221,10 +257,14 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 			local tile = g_state.tile_manager.tiles[col.cell.x + 1][col.cell.y + 1]
 			g_log.log(tile_str(tile))
 
-			if tile.type == "normal" then
+			if tile.type == g_flags.normal then
 				tile.state = "warmup"
-			elseif tile.type == "instakill" then
+			elseif tile.type == g_flags.instakill then
 				self.kill(self)
+				break
+			elseif tile.type == g_flags.level_exit then
+				set_game_state(level_end_state)
+				break
 			end
 
 			if col.is_ground_collision then
@@ -348,7 +388,7 @@ function check_swept_collision(old_position, new_position)
 		local tile = get_map_tile_at_position(sweeper)
 		if tile ~= nil then
 			-- g_log.log("s: "..vec2_str(sweeper).." tc: "..vec2_str(tile.cell))
-			if fget(tile.sprite, 0) or fget(tile.sprite, 1) then
+			if tile.type ~= nil then
 				-- g_log.log("COLLISION")
 			 	return tile
 			end
@@ -482,26 +522,23 @@ function get_map_tile_at_position(position)
 
 	local cell = position_to_cell(position)
 	local sprite = mget(cell.x, cell.y)
-	local tiletype = ''
-	if (fget(sprite, 0)) then
-		tiletype = 'normal'
-	elseif (fget(sprite, 1)) then
-		tiletype = 'instakill'
-	end
+	local tiletype = get_tile_type(sprite)
 	return { type = tiletype, sprite = sprite, cell = cell, position = cell_to_position(cell.x, cell.y) }
 end
 
 function is_cell_collidable(cell_x, cell_y)
-	return get_tile_type(mget(cell_x, cell_y)) ~= ''
+	return get_tile_type(mget(cell_x, cell_y)) ~= nil
 end
 
 function get_tile_type(sprite)
-	if fget(sprite, 0) then
-		return 'normal'
-	elseif fget(sprite, 1) then
-		return 'instakill'
+	if fget(sprite, g_flags.normal) then
+		return g_flags.normal
+	elseif fget(sprite, g_flags.instakill) then
+		return g_flags.instakill
+	elseif fget(sprite, g_flags.level_exit) then
+		return g_flags.level_exit
 	else
-		return ''
+		return nil
 	end
 end
 
@@ -905,6 +942,7 @@ function _update()
 		g_state.update(g_state)
 	end
 	
+	g_log.log("Mem: "..stat(0))
 	g_log.log("CPU: "..stat(1))
 end
 
