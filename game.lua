@@ -82,8 +82,6 @@ ingame_state = {
 				game_obj.update(game_obj)
 			end
 		end
-
-		-- @TODO Collision detection
 	end,
 
 	draw = function(self)
@@ -192,7 +190,12 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		for col in all(collisions) do
 			local tile = g_state.tile_manager.tiles[col.cell.x + 1][col.cell.y + 1]
 			g_log.log(tile_str(tile))
-			tile.state = "warmup"
+
+			if tile.type == "normal" then
+				tile.state = "warmup"
+			elseif tile.type == "instakill" then
+				self.kill(self)
+			end
 
 			if col.is_ground_collision then
 				self.is_on_ground = true
@@ -202,6 +205,11 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 				end
 			end
 		end
+	end
+
+	new_player.kill = function(self)
+		set_game_state(ingame_state)
+		return
 	end
 
 	-- Checks for collisions with the player
@@ -299,10 +307,33 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	return new_player
 end
 
+-- 
+-- Check for collisions between a dynamic position and a the tilemap using a sweeping algorithm
+--
+function check_swept_collision(old_position, new_position)
+	local direction = vec2_normalized(new_position - old_position)
+	local attempted_magnitude = vec2_magnitude(new_position - old_position)
+	local sweeper = clone_vec2(old_position)
+	while (intersection == nil and (vec2_magnitude(sweeper - old_position) < attempted_magnitude)) do
+		local tile = get_map_tile_at_position(sweeper)
+		if tile ~= nil then
+			-- g_log.log("s: "..vec2_str(sweeper).." tc: "..vec2_str(tile.cell))
+			if fget(tile.sprite, 0) or fget(tile.sprite, 1) then
+				-- g_log.log("COLLISION")
+			 	return tile
+			end
+		end
+		sweeper += clone_vec2(direction)
+	end
+
+	return nil
+end
+
+
 --
 -- Creates a timer for a single tile
 --
-function make_tile(name, cell_x, cell_y, max_duration, cooldown_rate, warmup_rate)
+function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warmup_rate)
 	local t = make_game_object(name, 0, 0)
 	t.state = 'idle'
 	t.elapsed = 0
@@ -311,7 +342,11 @@ function make_tile(name, cell_x, cell_y, max_duration, cooldown_rate, warmup_rat
 	t.warmup_rate = warmup_rate
 	t.cell_x = cell_x
 	t.cell_y = cell_y
+	t.type = type
 	t.sprites = {16, 17, 18}
+	if t.type == "instakill" then
+		t.sprites = { 32 }
+	end
 
 	t.update = function(self)
 		elapsed_changed = false
@@ -357,7 +392,7 @@ function make_tile(name, cell_x, cell_y, max_duration, cooldown_rate, warmup_rat
 end
 
 function tile_str(tile)
-	return tile.name..": s= "..tile.state.." e= "..tile.elapsed.."/"..tile.max_duration
+	return tile.name.." ("..tile.type.."): s= "..tile.state.." e= "..tile.elapsed.."/"..tile.max_duration
 end
 
 --
@@ -382,7 +417,8 @@ function make_tile_manager(width, height)
 			for y = 0, self.height - 1 do
 				if is_cell_collidable(x, y) then
 					-- @TODO Reset to default tile instead of warmed-up tile.
-					add(self.tiles[x + 1], make_tile("Tile-"..x.."-"..y, x, y, self.tile_timer_duration, self.cooldown_rate, self.warmup_rate))
+					local tiletype = get_tile_type(mget(x, y))
+					add(self.tiles[x + 1], make_tile("Tile-"..x.."-"..y, tiletype, x, y, self.tile_timer_duration, self.cooldown_rate, self.warmup_rate))
 					add(self.active_tiles, self.tiles[x + 1][y + 1])
 					add(g_state.scene, self.tiles[x + 1][y + 1])
 				else
@@ -406,28 +442,6 @@ function make_tile_manager(width, height)
 	return tile_manager
 end
 
--- 
--- Check for collisions between a dynamic position and a the tilemap using a sweeping algorithm
---
-function check_swept_collision(old_position, new_position)
-	local direction = vec2_normalized(new_position - old_position)
-	local attempted_magnitude = vec2_magnitude(new_position - old_position)
-	local sweeper = clone_vec2(old_position)
-	while (intersection == nil and (vec2_magnitude(sweeper - old_position) < attempted_magnitude)) do
-		local tile = get_map_tile_at_position(sweeper)
-		if tile ~= nil then
-			-- g_log.log("s: "..vec2_str(sweeper).." tc: "..vec2_str(tile.cell))
-			if fget(tile.sprite, 0) then
-				-- g_log.log("COLLISION")
-			 	return tile
-			end
-		end
-		sweeper += clone_vec2(direction)
-	end
-
-	return nil
-end
-
 --
 -- Gets the map tile at a pixel position
 --
@@ -437,11 +451,28 @@ function get_map_tile_at_position(position)
 	end
 
 	local cell = position_to_cell(position)
-	return { sprite = mget(cell.x, cell.y), cell = cell, position = cell_to_position(cell.x, cell.y) }
+	local sprite = mget(cell.x, cell.y)
+	local tiletype = ''
+	if (fget(sprite, 0)) then
+		tiletype = 'normal'
+	elseif (fget(sprite, 1)) then
+		tiletype = 'instakill'
+	end
+	return { type = tiletype, sprite = sprite, cell = cell, position = cell_to_position(cell.x, cell.y) }
 end
 
 function is_cell_collidable(cell_x, cell_y)
-	return fget(mget(cell_x, cell_y), 0)
+	return get_tile_type(mget(cell_x, cell_y)) ~= ''
+end
+
+function get_tile_type(sprite)
+	if fget(sprite, 0) then
+		return 'normal'
+	elseif fget(sprite, 1) then
+		return 'instakill'
+	else
+		return ''
+	end
 end
 
 --
