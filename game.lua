@@ -11,6 +11,7 @@ g_flags = {
 	normal = 0,
 	instakill = 1,
 	level_exit = 2,
+	indestructible = 3,
 }
 
 --
@@ -413,9 +414,15 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 	t.cell_x = cell_x
 	t.cell_y = cell_y
 	t.type = type
-	t.sprites = {16, 17, 18}
-	if t.type == "instakill" then
+	
+	if t.type == g_flags.normal then
+		t.sprites = {16, 17, 18}	
+	elseif t.type == g_flags.instakill then
 		t.sprites = { 32 }
+	elseif t.type == g_flags.level_exit then
+		t.sprites = { 19 }
+	elseif t.type == g_flags.indestructible then
+		t.sprites = { 20 }
 	end
 
 	t.update = function(self)
@@ -537,6 +544,8 @@ function get_tile_type(sprite)
 		return g_flags.instakill
 	elseif fget(sprite, g_flags.level_exit) then
 		return g_flags.level_exit
+	elseif fget(sprite, g_flags.indestructible) then
+		return g_flags.indestructible
 	else
 		return nil
 	end
