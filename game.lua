@@ -28,7 +28,9 @@ ingame_state = {
 		add(self.scene, self.tile_manager)
 
 		-- Make the camera
-		self.main_camera = make_camera(0, 0, 128, 128, 0, 0)
+		self.main_camera = make_camera("main", 0, 0, 0, 0, 128, 128)
+		attach_follow_camera(self.main_camera, 48, 32, nil)
+		add(self.scene, self.main_camera)
 
 		-- Make the player
 		local player_height = 8
@@ -41,6 +43,7 @@ ingame_state = {
 		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed, player_jump_power, player_jump_duration)
 		add(self.scene, self.player)
 
+		self.main_camera.follow_cam.target = self.player
 		game_timer = 0
 	end,
 
@@ -612,30 +615,67 @@ end
 --
 -- Camera
 --
-function make_camera(draw_x, draw_y, draw_width, draw_height, shoot_x, shoot_y)
-	local t = {
- 		draw_pos = make_vec2(draw_x, draw_y),
- 		draw_width = draw_width,
- 		draw_height = draw_height,
- 		shoot_pos = make_vec2(shoot_x, shoot_y),
- 	}
-	return t
+function make_camera(name, pos_x, pos_y, draw_x, draw_y, draw_width, draw_height)
+	local new_cam = make_game_object(name, pos_x, pos_y)
+	new_cam.cam = {
+		draw_pos = make_vec2(draw_x, draw_y),
+		draw_width = draw_width,
+		draw_height = draw_height,
+	}	
+	
+	return new_cam
 end
 
 function camera_draw_start(cam)
-	local draw_x = cam.draw_pos.x
-	local draw_y = cam.draw_pos.y
+	local draw_x = cam.cam.draw_pos.x
+	local draw_y = cam.cam.draw_pos.y
 
-	local cam_x = cam.shoot_pos.x - draw_x
-	local cam_y = cam.shoot_pos.y - draw_y
+	local cam_x = cam.position.x - draw_x
+	local cam_y = cam.position.y - draw_y
 
 	camera(cam_x, cam_y)
-	clip(draw_x, draw_y, cam.draw_width, cam.draw_height)
+	clip(draw_x, draw_y, cam.cam.draw_width, cam.cam.draw_height)
 end
 
 function camera_draw_end(cam)
 	camera()
 	clip()
+end
+
+--
+-- Camera that can follow a target
+--
+function attach_follow_camera(cam, bounds_width, bounds_height, target)
+	cam.follow_cam = {
+		bounds_width = bounds_width,
+		bounds_height = bounds_height,
+		target = target
+	}
+
+	cam.update = function(self)
+		if self.follow_cam.target ~= nil then
+			-- @TODO Apply to center of screen, not left edge.
+			
+			local follow = self.follow_cam
+			local target = follow.target
+			
+			local left_bound = self.position.x + flr(self.cam.draw_width / 2) - flr(follow.bounds_width / 2)
+			local right_bound = self.position.x + flr(self.cam.draw_width / 2) + flr(follow.bounds_width / 2)
+			if target.position.x < left_bound then
+				self.position.x -= left_bound - target.position.x
+			elseif target.position.x + 8 > right_bound then
+				self.position.x += target.position.x + 8 - right_bound
+			end
+
+			local top_bound = self.position.y + flr(self.cam.draw_height / 2) - flr(follow.bounds_height / 2)
+			local bottom_bound = self.position.y + flr(self.cam.draw_height / 2) + flr(follow.bounds_height / 2)
+			if target.position.y < top_bound then
+				self.position.y -= top_bound - target.position.y
+			elseif target.position.y + 8 > bottom_bound then
+				self.position.y += target.position.y + 8 - bottom_bound
+			end
+		end 
+	end
 end
 
 --
@@ -681,6 +721,7 @@ function set_anim_spr_animation(controller, animation)
 		controller.current_animation = animation
 	end
 end
+
 
 --
 -- Physics

@@ -27,7 +27,7 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 . Level timer
 . Ceiling tile collisions
 . Player jumping
-- Camera follows player
+. Camera follows player
 - Death
 - Level end
 - Multiple levels
