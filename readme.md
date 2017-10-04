@@ -32,13 +32,13 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 . Death
 . Game over screen
 . Level end
+. Indestructible collision tiles
 - Level reset
 - Multiple levels
-- Player special moves
 - Main menu
-- Non-destructible collision tiles
 
 ## Important
+- Player special moves
 - Juicy death animation
 - Fall animation
 - Gated special moves
