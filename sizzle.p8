@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 10
+version 8
 __lua__
 g_state = nil
 
@@ -94,7 +94,37 @@ ingame_state = {
 	end,
 
 	exit = function(self)
-	end
+	end,
+}
+
+gameover_state = {
+	enter = function(self)
+	end,
+
+	update = function(self)
+		if btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5) then
+			set_game_state(ingame_state)
+		end
+	end,
+
+	draw = function(self)
+		-- Draw game-over window
+		camera()
+		clip()
+
+		rectfill(12, 30, 116, 86, 6)
+		rectfill(14, 32, 114, 84, 3)
+		color(7)
+
+		local line_height = 10
+		local print_y = 40
+		print("game over!", 46, print_y)
+		print_y += line_height
+		print("press any key to restart", 16, print_y)
+	end,
+
+	exit = function(self)
+	end,
 }
 
 --
@@ -211,7 +241,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	end
 
 	new_player.kill = function(self)
-		set_game_state(ingame_state)
+		set_game_state(gameover_state)
 		return
 	end
 
@@ -851,7 +881,7 @@ g_log.render = function()
 	if (g_log.show_debug) then
 		color(7)
 		for i = 1, #g_log.log_data do
-			print(g_log.log_data[i])
+			print(g_log.log_data[i], 0, 5 + 5 * i)
 		end
 	end
 end
