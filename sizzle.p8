@@ -17,6 +17,17 @@ g_flags = {
 	indestructible = 3,
 }
 
+g_levels = {
+	{
+		cell_offset_x = 1,
+		cell_offset_y = 1,
+		player_start_x = 1 * 128 / 4,
+		player_start_y = 3 * 128 / 4,
+	}
+}
+
+g_game = nil
+
 --
 -- Encapsulates the ingame state
 --
@@ -40,19 +51,11 @@ ingame_state = {
 		add(self.scene, self.tile_manager)
 
 		-- Make the camera
-		self.main_camera = make_camera("main", 0, 0, 0, 0, 128, 128)
-		attach_follow_camera(self.main_camera, 48, 32, nil)
+		self.main_camera = g_game.main_camera
 		add(self.scene, self.main_camera)
 
 		-- Make the player
-		local player_height = 8
-		local player_start_x = 2 * 128 / 4 -- @TODO Replace with per-level definition
-		local player_start_y = 1 * 128 / 4 -- @TODO Replace with per-level definition
-		local player_sprite = 1
-		local player_speed = 2
-		local player_jump_power = 2.25
-		local player_jump_duration = 7
-		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed, player_jump_power, player_jump_duration)
+		self.player = g_game.player
 		add(self.scene, self.player)
 
 		self.main_camera.follow_cam.target = self.player
@@ -82,9 +85,9 @@ ingame_state = {
 			self.player.is_jump_held = false
 		end
 
-		-- @DEBUG Reset the game
+		-- @DEBUG Reload the level
 		if btnp(5) then
-			set_game_state(ingame_state)
+			g_game.reload_level(g_game)
 			return
 		end
 
@@ -112,7 +115,7 @@ gameover_state = {
 
 	update = function(self)
 		if btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5) then
-			set_game_state(ingame_state)
+			g_game.reload_level(g_game)
 		end
 	end,
 
@@ -142,7 +145,7 @@ level_end_state = {
 
 	update = function(self)
 		if btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5) then
-			set_game_state(ingame_state)
+			g_game.load_next_level(g_game)
 		end
 	end,
 
@@ -172,7 +175,7 @@ main_menu_state = {
 
 	update = function(self)
 		if btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5) then
-			set_game_state(ingame_state)
+			g_game.load_next_level(g_game)
 		end
 	end,
 
@@ -189,7 +192,7 @@ main_menu_state = {
 		local print_y = 40
 		print("sizzle!", 52, print_y)
 		print_y += line_height
-		print("press any key to start", 22, print_y)
+		print("press any key to play", 22, print_y)
 	end,
 
 	exit = function(self)
@@ -254,7 +257,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 		self.update_physics(self)
 
-		if (self.is_jumping) then
+		if (not self.is_on_ground) then
 			if self.velocity.x < 0 then
 				self.renderable.flip_x = true
 				set_anim_spr_animation(self.anim_controller, 'jump')
@@ -501,11 +504,11 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 	end
 
 	t.reset = function(self)
-		g_log.syslog(tile_str(self))
-		--g_log.syslog("Resetting ("..self.cell_x..", "..self.cell_y..") to "..self.sprites[1])
-		mset(self.cell_x, self.cell_y, self.sprites[1])
-		self.state = 'idle'
-		self.elapsed = 0
+		if self.type == g_flags.normal then
+			mset(self.cell_x, self.cell_y, self.sprites[1])
+			self.state = 'idle'
+			self.elapsed = 0
+		end
 	end
 
 	return t
@@ -523,8 +526,8 @@ function make_tile_manager(width, height)
 	tile_manager.width = width
 	tile_manager.height = height
 	tile_manager.tile_timer_duration = 60
-	tile_manager.cooldown_rate = 1
-	tile_manager.warmup_rate = 1.5
+	tile_manager.cooldown_rate = 0.5
+	tile_manager.warmup_rate = 3
 	tile_manager.active_tiles = {}
 
 	tile_manager.init = function(self) 
@@ -565,7 +568,6 @@ function make_tile_manager(width, height)
 		g_log.syslog("Resetting tile manager")
 		for x = 1, self.width do
 			if self.tiles[x] ~= nil then
-				g_log.syslog("Resetting tile manager["..x.."]")
 				for y = 1, self.height do
 					if self.tiles[x][y] ~= 0 then
 						self.tiles[x][y].reset(self.tiles[x][y])
@@ -628,6 +630,72 @@ function cell_to_position(x, y)
 	local world_y = y * 8
 
 	return make_vec2(world_x, world_y)
+end
+
+--
+-- Makes a game manager
+--
+function make_game(levels)
+	g = {
+		levels = levels,
+		active_level = nil,
+		player = nil,
+		main_camera = nil
+	}
+
+	g.init = function(self)
+		local player_height = 8
+		local player_start_x = 0
+		local player_start_y = 0
+		local player_sprite = 1
+		local player_speed = 2
+		local player_jump_power = 2.25
+		local player_jump_duration = 7
+		self.player = make_player("player", player_start_x, player_start_y, player_sprite, player_speed, player_jump_power, player_jump_duration)
+	end
+
+	g.load_level = function(self, level_index)
+		if level_index < 1 or level_index > #self.levels then
+			return
+		end
+
+		new_level = self.levels[level_index]
+		self.player.position = make_vec2(new_level.player_start_x, new_level.player_start_y)
+		self.active_level = level_index
+
+		self.main_camera = make_camera("main", new_level.cell_offset_x * 8, new_level.cell_offset_y * 8, 0, 0, 128, 128)
+		attach_follow_camera(self.main_camera, 48, 32, nil)
+
+		set_game_state(ingame_state)
+	end
+
+	g.load_next_level = function(self)
+		if self.active_level == nil then
+			self.load_level(self, 1)
+		elseif self.active_level == #self.levels then
+			self.load_level(self, 1)
+		else
+			self.load_level(self, self.active_level + 1)
+		end
+	end
+
+	g.reload_level = function(self)
+		if self.active_level == nil then
+			self.load_level(self, 1)
+		else
+			self.load_level(self, self.active_level)
+		end
+	end
+
+	g.get_active_level = function(self)
+		if self.active_level == nil then
+			return nil
+		else
+			return self.levels[self.active_level]
+		end
+	end
+
+	return g
 end
 
 --
@@ -999,6 +1067,9 @@ end
 -- Global init function.
 --
 function _init()
+	g_game = make_game(g_levels)
+	g_game.init(g_game)
+
 	set_game_state(main_menu_state)
 end
 
