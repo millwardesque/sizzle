@@ -30,7 +30,9 @@ ingame_state = {
 		g_physics.init(g_physics, make_vec2(0, 2.75))
 
 		-- Create the tiles
-		self.tile_manager = make_tile_manager(128, 128)
+		if self.tile_manager == nil then
+			self.tile_manager = make_tile_manager(128, 128)
+		end
 		self.tile_manager.init(self.tile_manager)
 		add(self.scene, self.tile_manager)
 
@@ -446,7 +448,7 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 	t.type = type
 	
 	if t.type == g_flags.normal then
-		t.sprites = {16, 17, 18}	
+		t.sprites = {16, 17, 18}
 	elseif t.type == g_flags.instakill then
 		t.sprites = { 32 }
 	elseif t.type == g_flags.level_exit then
@@ -495,6 +497,14 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 
 	end
 
+	t.reset = function(self)
+		g_log.syslog(tile_str(self))
+		--g_log.syslog("Resetting ("..self.cell_x..", "..self.cell_y..") to "..self.sprites[1])
+		mset(self.cell_x, self.cell_y, self.sprites[1])
+		self.state = 'idle'
+		self.elapsed = 0
+	end
+
 	return t
 end
 
@@ -515,6 +525,9 @@ function make_tile_manager(width, height)
 	tile_manager.active_tiles = {}
 
 	tile_manager.init = function(self) 
+		-- Reset any modified tiles from a previous session
+		self.reset(self)
+
 		-- Populate the tiles for collidable tiles
 		self.tiles = {}
 		self.active_tiles = {}
@@ -541,7 +554,20 @@ function make_tile_manager(width, height)
 				del(self.active_tiles, tile)
 				del(g_state.scene, tile)
 				mset(tile.cell_x, tile.cell_y, 0)
-				self.tiles[tile.cell_x + 1][tile.cell_y + 1] = 0
+			end
+		end
+	end
+
+	tile_manager.reset = function(self)
+		g_log.syslog("Resetting tile manager")
+		for x = 1, self.width do
+			if self.tiles[x] ~= nil then
+				g_log.syslog("Resetting tile manager["..x.."]")
+				for y = 1, self.height do
+					if self.tiles[x][y] ~= 0 then
+						self.tiles[x][y].reset(self.tiles[x][y])
+					end
+				end
 			end
 		end
 	end
@@ -932,7 +958,7 @@ end
 -- Logger
 --
 g_log = {
-	show_debug = true,
+	show_debug = false,
 	log_data = {}
 }
 
