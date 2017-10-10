@@ -19,9 +19,19 @@ g_flags = {
 
 g_levels = {
 	{
-		cell_offset_x = 1,
-		cell_offset_y = 1,
+		cell_x = 0,
+		cell_y = 0,
+		width = 16,
+		height = 16,
 		player_start_x = 1 * 128 / 4,
+		player_start_y = 3 * 128 / 4,
+	},
+	{
+		cell_x = 16,
+		cell_y = 0,
+		width = 16,
+		height = 16,
+		player_start_x = (16 * 8) + (0 * 128 / 4),
 		player_start_y = 3 * 128 / 4,
 	}
 }
@@ -30,6 +40,7 @@ g_game = nil
 
 --
 -- Encapsulates the ingame state
+-- @TODO Merge down into g_game manager
 --
 ingame_state = {
 	scene = nil,
@@ -41,25 +52,23 @@ ingame_state = {
 	enter = function(self)
 		self.scene = {}
 
-		g_physics.init(g_physics, make_vec2(0, 2.75))
-
-		-- Create the tiles
-		if self.tile_manager == nil then
-			self.tile_manager = make_tile_manager(128, 128)
-		end
-		self.tile_manager.init(self.tile_manager)
-		add(self.scene, self.tile_manager)
-
-		-- Make the camera
-		self.main_camera = g_game.main_camera
-		add(self.scene, self.main_camera)
-
-		-- Make the player
+		-- Retrieve the player
 		self.player = g_game.player
 		add(self.scene, self.player)
 
+		-- Retrieve the tile manager
+		self.tile_manager = g_game.tile_manager
+		add(self.scene, self.tile_manager)
+		for tile in all(self.tile_manager.active_tiles) do
+			add(self.scene, tile)
+		end
+
+		-- Retrieve the camera
+		self.main_camera = g_game.main_camera
+		add(self.scene, self.main_camera)
 		self.main_camera.follow_cam.target = self.player
-		game_timer = 0
+
+		self.game_timer = 0
 	end,
 
 	update = function(self)
@@ -293,7 +302,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		local collisions = self.check_for_collisions(self, {}, 1)
 		self.is_on_ground = false
 		for col in all(collisions) do
-			local tile = g_state.tile_manager.tiles[col.cell.x + 1][col.cell.y + 1]
+			local tile = g_state.tile_manager.get_tile_at_cell(g_state.tile_manager, col.cell.x, col.cell.y)
 			g_log.log(tile_str(tile))
 
 			if tile.type == g_flags.normal then
@@ -492,13 +501,13 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 		end
 
 		if elapsed_changed then
-			 if self.elapsed < 0.2 then
-			 	mset(self.cell_x, self.cell_y, self.sprites[1])
-			 elseif self.elapsed / self.max_duration > 0.6 then
-			 	mset(self.cell_x, self.cell_y, self.sprites[3])
-			 elseif self.elapsed / self.max_duration <= 0.6 then
-			 	mset(self.cell_x, self.cell_y, self.sprites[2])
-			 end
+			if self.elapsed / self.max_duration < 0.2 then
+				mset(self.cell_x, self.cell_y, self.sprites[1])
+			elseif self.elapsed / self.max_duration > 0.6 then
+				mset(self.cell_x, self.cell_y, self.sprites[3])
+			elseif self.elapsed / self.max_duration <= 0.6 then
+				mset(self.cell_x, self.cell_y, self.sprites[2])
+			end
 		end
 
 	end
@@ -515,14 +524,16 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 end
 
 function tile_str(tile)
-	return tile.name.." ("..tile.type.."): s= "..tile.state.." e= "..tile.elapsed.."/"..tile.max_duration
+	return tile.name.." ("..tile.type.."): s="..tile.state.." e="..tile.elapsed.."/"..tile.max_duration
 end
 
 --
 -- Creates a manager for a grid of tiles
-function make_tile_manager(width, height)
+function make_tile_manager(start_x, start_y, width, height)
 	local tile_manager = make_game_object("tile manager", start_x, start_y)
 	tile_manager.tiles = {}
+	tile_manager.start_x = start_x
+	tile_manager.start_y = start_y
 	tile_manager.width = width
 	tile_manager.height = height
 	tile_manager.tile_timer_duration = 60
@@ -540,13 +551,13 @@ function make_tile_manager(width, height)
 
 		for x = 0, self.width - 1 do
 			add(self.tiles, {})
+			local cell_x = x + self.start_x
 			for y = 0, self.height - 1 do
-				if is_cell_collidable(x, y) then
-					-- @TODO Reset to default tile instead of warmed-up tile.
-					local tiletype = get_tile_type(mget(x, y))
-					add(self.tiles[x + 1], make_tile("tile-"..x.."-"..y, tiletype, x, y, self.tile_timer_duration, self.cooldown_rate, self.warmup_rate))
+				local cell_y = y + self.start_y
+				if is_cell_collidable(cell_x, cell_y) then
+					local tiletype = get_tile_type(mget(cell_x, cell_y))
+					add(self.tiles[x + 1], make_tile("tile-"..cell_x.."-"..cell_y, tiletype, cell_x, cell_y, self.tile_timer_duration, self.cooldown_rate, self.warmup_rate))
 					add(self.active_tiles, self.tiles[x + 1][y + 1])
-					add(g_state.scene, self.tiles[x + 1][y + 1])
 				else
 					add(self.tiles[x + 1], 0) -- Can't add nil to a table for some reason.
 				end
@@ -575,6 +586,11 @@ function make_tile_manager(width, height)
 				end
 			end
 		end
+	end
+
+	tile_manager.get_tile_at_cell = function(self, x, y)
+		-- @DEBUG g_log.syslog("p: ("..x..", "..y..") vs. ("..(1 + x - self.start_x)..", "..(1 + y - self.start_y)..")")
+		return self.tiles[1 + x - self.start_x][1 + y - self.start_y]
 	end
 
 	return tile_manager
@@ -640,7 +656,9 @@ function make_game(levels)
 		levels = levels,
 		active_level = nil,
 		player = nil,
-		main_camera = nil
+		main_camera = nil,
+		tile_manager = nil,
+		scene = {}
 	}
 
 	g.init = function(self)
@@ -663,8 +681,18 @@ function make_game(levels)
 		self.player.position = make_vec2(new_level.player_start_x, new_level.player_start_y)
 		self.active_level = level_index
 
-		self.main_camera = make_camera("main", new_level.cell_offset_x * 8, new_level.cell_offset_y * 8, 0, 0, 128, 128)
+		self.main_camera = make_camera("main", 0, 0, 0, 0, 128, 128)
 		attach_follow_camera(self.main_camera, 48, 32, nil)
+
+		g_physics.init(g_physics, make_vec2(0, 2.75))
+
+		-- Create the tiles
+		if self.tile_manager ~= nil then
+			self.tile_manager.reset(self.tile_manager)
+		end
+
+		self.tile_manager = make_tile_manager(new_level.cell_x, new_level.cell_y, new_level.width, new_level.height)
+		self.tile_manager.init(self.tile_manager)
 
 		set_game_state(ingame_state)
 	end
@@ -1246,9 +1274,9 @@ __map__
 0000000000001010101000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000010000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000101000000010100000001010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000202021212120202121212020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000101000000010100000001010000000000000000000001300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000101010101010101010101010000014100000000010101400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000202021212120202121212020000000212121212121000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
