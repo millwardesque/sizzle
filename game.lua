@@ -28,7 +28,15 @@ g_levels = {
 		cell_y = 0,
 		width = 8,
 		height = 16,
-		player_start_x = (16 * 8) + (0 * 128 / 4),
+		player_start_x = (16 * 8) + 8,
+		player_start_y = 3 * 128 / 4,
+	},
+	{
+		cell_x = 24,
+		cell_y = 0,
+		width = 16,
+		height = 16,
+		player_start_x = (24 * 8) + 8,
 		player_start_y = 3 * 128 / 4,
 	},
 }
@@ -225,7 +233,8 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	local player_anims = {
 		idle = { 1 },
 		walk = { 2, 3 },
-		jump = { 4 }
+		jump = { 4 },
+		fall = { 4, 5 }
 	}
 
 	attach_anim_spr_controller(new_player, 4, player_anims, "idle", 0)
@@ -266,10 +275,10 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		if (not self.is_on_ground) then
 			if self.velocity.x < 0 then
 				self.renderable.flip_x = true
-				set_anim_spr_animation(self.anim_controller, 'jump')
+				set_anim_spr_animation(self.anim_controller, 'fall')
 			elseif self.velocity.x >= 0 then
 				self.renderable.flip_x = false
-				set_anim_spr_animation(self.anim_controller, 'jump')
+				set_anim_spr_animation(self.anim_controller, 'fall')
 			end
 		else
 			if self.velocity.x < 0 then
