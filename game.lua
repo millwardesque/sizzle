@@ -26,11 +26,11 @@ g_levels = {
 	{
 		cell_x = 16,
 		cell_y = 0,
-		width = 16,
+		width = 8,
 		height = 16,
 		player_start_x = (16 * 8) + (0 * 128 / 4),
 		player_start_y = 3 * 128 / 4,
-	}
+	},
 }
 
 g_game = nil
@@ -430,7 +430,7 @@ function check_swept_collision(old_position, new_position)
 	local attempted_magnitude = vec2_magnitude(new_position - old_position)
 	local sweeper = clone_vec2(old_position)
 	while (intersection == nil and (vec2_magnitude(sweeper - old_position) < attempted_magnitude)) do
-		local tile = get_map_tile_at_position(sweeper)
+		local tile = g_state.tile_manager.get_map_tile_at_position(g_state.tile_manager, sweeper)
 		if tile ~= nil then
 			-- g_log.log("s: "..vec2_str(sweeper).." tc: "..vec2_str(tile.cell))
 			if tile.type ~= nil then
@@ -588,6 +588,20 @@ function make_tile_manager(start_x, start_y, width, height)
 	tile_manager.get_tile_at_cell = function(self, x, y)
 		-- @DEBUG g_log.syslog("p: ("..x..", "..y..") vs. ("..(1 + x - self.start_x)..", "..(1 + y - self.start_y)..")")
 		return self.tiles[1 + x - self.start_x][1 + y - self.start_y]
+	end
+
+	tile_manager.get_map_tile_at_position = function(self, position)
+		local tile = get_map_tile_at_position(position)
+		if tile ~= nil then
+			if (tile.cell.x >= self.start_x and tile.cell.x < self.start_x + self.width and
+				tile.cell.y >= self.start_y and tile.cell.y < self.start_y + self.height) then
+				return tile
+			else
+				return nil
+			end
+		else
+			return nil
+		end
 	end
 
 	return tile_manager
