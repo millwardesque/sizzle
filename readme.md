@@ -39,20 +39,17 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 . 3 Levels
 
 ## Important
-- Juicy death animation
-  - Migrate particle system
-  - Allow for non-looping animations
-  - Wait for animation to complete on death
-  - Add lifespan to particle system
 - Player special moves
 - Obstacles
-- Animated movement
 - Animated obstacles
 - Interesting setting
 - Time high score
 - Black-out tiles outside level range
 - Improved levels
+. Animated movement
+. Death animation
 . Fall animation
+
 
 ## Nice-to-have
 - Tutorial
@@ -61,6 +58,8 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 - High score based on fewest jumps to reach finish
 - Particles on player movement and idle
 - Wait for all buttons up on all menu screens before recognizing btnp()
+- Allow for non-looping animations
+- Juicier motion and animationse
 
 ## Interesting ideas
 - Player can press a button to be dropped in from ceiling

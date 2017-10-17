@@ -228,6 +228,8 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	new_player.jump_duration = jump_duration
 	new_player.is_on_ground = false
 	new_player.is_jump_held = false
+	new_player.is_dead = false
+	new_player.death_explosion = nil
 
 	-- Animations
 	local player_anims = {
@@ -235,7 +237,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		walk = { 2, 3 },
 		jump = { 4 },
 		fall = { 4, 5 },
-		explode = { 7, 7, 8, 8, 9, 9, 10, 10, 11, 11 },
+		dead = { 0 },
 	}
 
 	attach_anim_spr_controller(new_player, 4, player_anims, "idle", 0)
@@ -244,6 +246,17 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	new_player.walk_speed = walk_speed
 	attach_renderable(new_player, sprite)
 	new_player.renderable.draw_order = 1	-- Draw player after other in-game objects
+
+	new_player.init = function(self)
+		self.velocity = make_vec2(0, 0)
+		self.old_position = clone_vec2(self.position)
+		self.is_jumping = false
+		self.jump_elapsed = 0
+		self.is_on_ground = false
+		self.is_jump_held = false
+		self.is_dead = false
+		self.death_explosion = nil
+	end
 
 	new_player.jump = function(self)
 		if not self.is_jumping and self.is_on_ground then
@@ -261,36 +274,43 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 	-- Update player
 	new_player.update = function (self)
-
-		if (self.is_jumping) then
-			if self.jump_elapsed < self.jump_duration then
-				new_player.velocity += g_physics.gravity * -self.jump_power
-				self.jump_elapsed += 1
-			else
-				self.stop_jump(self)
-			end
-		end
-
-		self.update_physics(self)
-
-		if (not self.is_on_ground) then
-			if self.velocity.x < 0 then
-				self.renderable.flip_x = true
-				set_anim_spr_animation(self.anim_controller, 'fall')
-			elseif self.velocity.x >= 0 then
-				self.renderable.flip_x = false
-				set_anim_spr_animation(self.anim_controller, 'fall')
+		if self.is_dead then
+			if self.death_explosion.is_dead(self.death_explosion) then
+				set_game_state(gameover_state)
 			end
 		else
-			if self.velocity.x < 0 then
-				self.renderable.flip_x = true
-				set_anim_spr_animation(self.anim_controller, 'walk')
-			elseif self.velocity.x > 0 then
-				self.renderable.flip_x = false
-				set_anim_spr_animation(self.anim_controller, 'walk')
-			elseif self.velocity.x == 0 then
-				self.renderable.flip_x = false
-				set_anim_spr_animation(self.anim_controller, 'idle')
+			if (self.is_jumping) then
+				if self.jump_elapsed < self.jump_duration then
+					new_player.velocity += g_physics.gravity * -self.jump_power
+					self.jump_elapsed += 1
+				else
+					self.stop_jump(self)
+				end
+			end
+
+			self.update_physics(self)
+
+			if not self.is_dead then
+				if (not self.is_on_ground) then
+					if self.velocity.x < 0 then
+						self.renderable.flip_x = true
+						set_anim_spr_animation(self.anim_controller, 'fall')
+					elseif self.velocity.x >= 0 then
+						self.renderable.flip_x = false
+						set_anim_spr_animation(self.anim_controller, 'fall')
+					end
+				else
+					if self.velocity.x < 0 then
+						self.renderable.flip_x = true
+						set_anim_spr_animation(self.anim_controller, 'walk')
+					elseif self.velocity.x > 0 then
+						self.renderable.flip_x = false
+						set_anim_spr_animation(self.anim_controller, 'walk')
+					elseif self.velocity.x == 0 then
+						self.renderable.flip_x = false
+						set_anim_spr_animation(self.anim_controller, 'idle')
+					end
+				end
 			end
 		end
 
@@ -333,8 +353,13 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	end
 
 	new_player.kill = function(self)
-		set_game_state(gameover_state)
-		return
+		local explosion_duration = 30 * 1.5
+		local explosion_particles = 50
+		local explosion_speed = 1
+		self.death_explosion = make_particle_system("player-death", self.position, 7, { 7, 7, 8, 9, 10, 11, 11 }, explosion_duration, explosion_particles, explosion_speed)
+		add(g_state.scene, self.death_explosion)
+		set_anim_spr_animation(self.anim_controller, 'dead')
+		self.is_dead = true
 	end
 
 	-- Checks for collisions with the player
@@ -700,6 +725,7 @@ function make_game(levels)
 
 		new_level = self.levels[level_index]
 		self.player.position = make_vec2(new_level.player_start_x, new_level.player_start_y)
+		self.player.init(self.player)
 		self.active_level = level_index
 
 		self.main_camera = make_camera("main", 0, 0, 0, 0, 128, 128)
@@ -760,6 +786,58 @@ function set_game_state(game_state)
 	if g_state ~= nil and g_state.enter then
 		g_state.enter(g_state)
 	end
+end
+
+--
+-- Particle system.
+--
+function make_particle_system(name, position, sprite, animation, lifespan, particle_count, particle_speed)
+	local game_obj = make_game_object(name, position.x, position.y)
+	attach_renderable(game_obj, sprite)
+
+	local anims = {
+		explode = animation,
+	}
+	attach_anim_spr_controller(game_obj, 8, anims, "explode", 0)
+
+	game_obj.particle_system = {
+		particles = {},
+		speed = speed,
+		lifespan = lifespan,
+	}
+
+	for i = 1, particle_count do
+		add(game_obj.particle_system.particles, {
+			position = make_vec2(0, 0),
+			velocity = vec2_normalized(make_vec2(rnd() - 0.5, rnd() - 0.5)) * particle_speed,
+		})
+	end
+
+	game_obj.is_dead = function(self)
+		return self.particle_system.lifespan <= 0
+	end
+
+	game_obj.update = function(self)
+		if self.particle_system.lifespan > 0 then
+			for p in all(self.particle_system.particles) do
+				p.position += p.velocity
+			end
+
+			update_anim_spr_controller(self.anim_controller, self)
+
+			self.particle_system.lifespan -= 1
+		end
+	end
+
+	game_obj.renderable.render = function(self, position)
+		if self.game_obj.particle_system.lifespan > 0 then
+			for p in all(self.game_obj.particle_system.particles) do
+				self.default_render(self, position + p.position)
+			end
+		end
+	end
+
+	return game_obj
 end
 
 -- 
