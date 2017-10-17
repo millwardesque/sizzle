@@ -43,6 +43,7 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
   - Migrate particle system
   - Allow for non-looping animations
   - Wait for animation to complete on death
+  - Add lifespan to particle system
 - Player special moves
 - Obstacles
 - Animated movement
