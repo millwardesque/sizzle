@@ -231,10 +231,11 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 	-- Animations
 	local player_anims = {
-		idle = { 1 },
+		idle = { 1, },
 		walk = { 2, 3 },
 		jump = { 4 },
-		fall = { 4, 5 }
+		fall = { 4, 5 },
+		explode = { 7, 7, 8, 8, 9, 9, 10, 10, 11, 11 },
 	}
 
 	attach_anim_spr_controller(new_player, 4, player_anims, "idle", 0)

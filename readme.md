@@ -39,9 +39,8 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 . 3 Levels
 
 ## Important
-- Player special moves
 - Juicy death animation
-- Gated special moves
+- Player special moves
 - Obstacles
 - Animated movement
 - Animated obstacles
@@ -53,6 +52,7 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 
 ## Nice-to-have
 - Tutorial
+- Gated special moves
 - Animated backgrounds
 - High score based on fewest jumps to reach finish
 - Particles on player movement and idle
