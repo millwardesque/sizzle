@@ -40,6 +40,10 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 
 ## Important
 - Player special moves
+  - Wall slide
+  - Wall jump
+  - Dash slice
+  . Double jump
 - Obstacles
 - Animated obstacles
 - Interesting setting
@@ -59,7 +63,7 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 - Particles on player movement and idle
 - Wait for all buttons up on all menu screens before recognizing btnp()
 - Allow for non-looping animations
-- Juicier motion and animationse
+- Juicier motion and animations
 
 ## Interesting ideas
 - Player can press a button to be dropped in from ceiling

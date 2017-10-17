@@ -81,23 +81,25 @@ ingame_state = {
 
 		-- Process input
 		self.player.velocity = make_vec2(0, 0)
-		if btn(0) then
-			self.player.velocity.x -= self.player.walk_speed
-		end
+		if not self.player.is_dead then
+			if btn(0) then
+				self.player.velocity.x -= self.player.walk_speed
+			end
 
-		if btn(1) then
-			self.player.velocity.x += self.player.walk_speed
-		end
+			if btn(1) then
+				self.player.velocity.x += self.player.walk_speed
+			end
 
-		if btn(4) and not self.player.is_jumping and not self.player.is_jump_held then
-			self.player.jump(self.player)
-		elseif not btn(4) and self.player.is_jumping then
-			self.player.stop_jump(self.player)
-		end
+			if btn(4) and not self.player.is_jumping and not self.player.is_jump_held then
+				self.player.jump(self.player)
+			elseif not btn(4) and self.player.is_jumping then
+				self.player.stop_jump(self.player)
+			end
 
-		if not btn(4) then
-			self.player.is_jump_held = false
-		end
+			if not btn(4) then
+				self.player.is_jump_held = false
+			end
+		end 
 
 		-- @DEBUG Reload the level
 		if btnp(5) then
@@ -226,6 +228,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	new_player.is_jumping = false
 	new_player.jump_elapsed = 0
 	new_player.jump_duration = jump_duration
+	new_player.jump_count = 0
 	new_player.is_on_ground = false
 	new_player.is_jump_held = false
 	new_player.is_dead = false
@@ -252,17 +255,23 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		self.old_position = clone_vec2(self.position)
 		self.is_jumping = false
 		self.jump_elapsed = 0
+		self.jump_count = 0
 		self.is_on_ground = false
 		self.is_jump_held = false
 		self.is_dead = false
+
+		if self.death_explosion then
+			del(g_state.scene, self.death_explosion)
+		end
 		self.death_explosion = nil
 	end
 
 	new_player.jump = function(self)
-		if not self.is_jumping and self.is_on_ground then
+		if (not self.is_jumping and self.is_on_ground) or (not self.is_on_ground and self.jump_count < 2) then
 			self.is_jumping = true
 			self.jump_elapsed = 0
 			self.is_jump_held = true
+			self.jump_count += 1
 			set_anim_spr_animation(self.anim_controller, 'jump')
 		end
 	end
@@ -315,8 +324,6 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		end
 
 		update_anim_spr_controller(self.anim_controller, self)
-
-		-- @DEBUG g_log.log("player: "..vec2_str(self.position))
 	end
 
 	-- Updates player physics
@@ -342,9 +349,9 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 				break
 			end
 
-			if col.is_ground_collision then
+			if col.is_ground_collision and tile.type ~= g_flags.instakill then
 				self.is_on_ground = true
-
+				self.jump_count = 0
 				if self.is_jumping then
 					self.stop_jump(self)
 				end
