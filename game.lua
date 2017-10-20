@@ -239,6 +239,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		idle = { 1, },
 		walk = { 2, 3 },
 		jump = { 4 },
+		wallslide = { 6 },
 		fall = { 4, 5 },
 		dead = { 0 },
 	}
@@ -281,6 +282,20 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		self.jump_elapsed = 0
 	end
 
+	new_player.wall_slide = function(self)
+		self.is_wall_sliding = true
+		self.jump_count = 0
+		if self.is_jumping then
+			self.stop_jump(self)
+		end
+
+		set_anim_spr_animation(self.anim_controller, 'wallslide')
+	end
+
+	new_player.stop_wall_slide = function(self)
+		self.is_wall_sliding = false
+	end
+
 	-- Update player
 	new_player.update = function (self)
 		if self.is_dead then
@@ -290,11 +305,13 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		else
 			if (self.is_jumping) then
 				if self.jump_elapsed < self.jump_duration then
-					new_player.velocity += g_physics.gravity * -self.jump_power
+					new_player.velocity += -1 * g_physics.gravity * self.jump_power
 					self.jump_elapsed += 1
 				else
 					self.stop_jump(self)
 				end
+			elseif (self.is_wall_sliding) then
+				new_player.velocity += -1 * g_physics.gravity * 0.5
 			end
 
 			self.update_physics(self)
@@ -335,12 +352,13 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 		local collisions = self.check_for_collisions(self, {}, 1)
 		self.is_on_ground = false
+		local has_wall_collision = false
 		for col in all(collisions) do
 			local tile = g_state.tile_manager.get_tile_at_cell(g_state.tile_manager, col.cell.x, col.cell.y)
 			g_log.log(tile_str(tile))
 
 			if tile.type == g_flags.normal then
-				tile.state = "warmup"
+				tile.set_state(tile, "warmup")
 			elseif tile.type == g_flags.instakill then
 				self.kill(self)
 				break
@@ -349,13 +367,24 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 				break
 			end
 
-			if col.is_ground_collision and tile.type ~= g_flags.instakill then
+			if col.is_ground_collision then
 				self.is_on_ground = true
 				self.jump_count = 0
 				if self.is_jumping then
 					self.stop_jump(self)
 				end
+
+				if self.is_wall_sliding then
+					self.stop_wall_slide(self)
+				end
+			elseif col.is_wall_collision and not self.is_jumping then
+				self.wall_slide(self)
+				has_wall_collision = true
 			end
+		end
+
+		if self.is_wall_sliding and not has_wall_collision then
+			self.stop_wall_slide(self)
 		end
 	end
 
@@ -439,6 +468,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		if left_hand_intersection ~= nil then
 			if self.position.x < left_hand_intersection.position.x + 8 then
 				self.position.x = left_hand_intersection.position.x + 8
+				left_hand_intersection.is_wall_collision = true
 				add(collisions, left_hand_intersection)
 				return self.check_for_collisions(self, collisions, iteration + 1)
 			end
@@ -453,6 +483,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		if right_hand_intersection ~= nil then
 			if self.position.x > right_hand_intersection.position.x - 8 then
 				self.position.x = right_hand_intersection.position.x - 8
+				right_hand_intersection.is_wall_collision = true
 				add(collisions, right_hand_intersection)
 				return self.check_for_collisions(self, collisions, iteration + 1)
 			end
@@ -500,6 +531,7 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 	t.cell_x = cell_x
 	t.cell_y = cell_y
 	t.type = type
+	t.is_dead = false
 	
 	if t.type == g_flags.normal then
 		t.sprites = {16, 17, 18}
@@ -520,8 +552,7 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 			self.elapsed -= self.cooldown_rate
 
 			if self.elapsed <= 0 then
-				self.elapsed = 0
-				self.state = 'idle'
+				self.set_state(self, 'idle')
 			end
 
 			elapsed_changed = true
@@ -529,10 +560,9 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 			self.elapsed += self.warmup_rate
 
 			if self.elapsed >= self.max_duration then
-				self.elapsed = self.max_duration
-				self.state = 'destroyed'
+				self.set_state(self, 'destroyed')
 			else
-				self.state = 'cooldown'	-- This can be changed to warmup next frame if the tile is activated again
+				self.set_state(self, 'cooldown') -- This can be changed to warmup next frame if the tile is activated again
 			end
 			elapsed_changed = true
 		elseif self.state == 'destroyed' then
@@ -554,8 +584,21 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 	t.reset = function(self)
 		if self.type == g_flags.normal then
 			mset(self.cell_x, self.cell_y, self.sprites[1])
-			self.state = 'idle'
+			
+			self.is_dead = false
+			self.set_state(self, 'idle')
+		end
+	end
+
+	t.set_state = function(self, state)
+		if not self.is_dead then
+			self.state = state
+		end
+
+		if self.state == 'idle' then
 			self.elapsed = 0
+		elseif self.state == 'destroyed' then
+			self.is_dead = true
 		end
 	end
 
@@ -605,8 +648,9 @@ function make_tile_manager(start_x, start_y, width, height)
 	end
 
 	tile_manager.update = function(self)
+		g_log.syslog("Updating tile manager")
 		for tile in all(self.active_tiles) do
-			if tile ~= 0 and tile.state == 'destroyed' then
+			if tile ~= 0 and tile.is_dead then
 				del(self.active_tiles, tile)
 				del(g_state.scene, tile)
 				mset(tile.cell_x, tile.cell_y, 0)
