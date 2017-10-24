@@ -241,7 +241,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		jump = { 4 },
 		wallslide = { 6 },
 		fall = { 4, 5 },
-		dead = { 0 },
+		dead = { 7, 8, 9, 10, 11, 0 },
 	}
 
 	attach_anim_spr_controller(new_player, 4, player_anims, "idle", 0)
@@ -260,6 +260,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		self.is_on_ground = false
 		self.is_jump_held = false
 		self.is_dead = false
+		self.anim_controller.loop = true
 
 		if self.death_explosion then
 			del(g_state.scene, self.death_explosion)
@@ -299,7 +300,15 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	-- Update player
 	new_player.update = function (self)
 		if self.is_dead then
-			if self.death_explosion.is_dead(self.death_explosion) then
+			if not self.death_explosion and not is_anim_spr_playing(self.anim_controller) then
+				local explosion_duration = 30 * 1.5
+				local explosion_particles = 50
+				local explosion_speed = 1
+				self.death_explosion = make_particle_system("player-death", self.position, 7, { 7, 7, 8, 9, 10, 11, 11 }, explosion_duration, explosion_particles, explosion_speed)
+				add(g_state.scene, self.death_explosion)
+			end
+
+			if self.death_explosion and self.death_explosion.is_dead(self.death_explosion) then
 				set_game_state(gameover_state)
 			end
 		else
@@ -389,12 +398,8 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	end
 
 	new_player.kill = function(self)
-		local explosion_duration = 30 * 1.5
-		local explosion_particles = 50
-		local explosion_speed = 1
-		self.death_explosion = make_particle_system("player-death", self.position, 7, { 7, 7, 8, 9, 10, 11, 11 }, explosion_duration, explosion_particles, explosion_speed)
-		add(g_state.scene, self.death_explosion)
 		set_anim_spr_animation(self.anim_controller, 'dead')
+		self.anim_controller.loop = false
 		self.is_dead = true
 	end
 
@@ -1102,6 +1107,7 @@ function attach_anim_spr_controller(game_obj, frames_per_cell, animations, start
 		animations = animations,
 		flip_x = false,
 		flip_y = false,
+		loop = true,
 	}
 	return game_obj
 end
@@ -1114,7 +1120,11 @@ function update_anim_spr_controller(controller, game_obj)
 		if (controller.current_animation != nil and controller.current_cell != nil) then
 			controller.current_cell += 1
 			if (controller.current_cell > #controller.animations[controller.current_animation]) then
-				controller.current_cell = 1
+				if controller.loop then
+					controller.current_cell = 1
+				else
+					controller.current_cell = #controller.animations[controller.current_animation]
+				end
 			end
 		end
 	end
@@ -1134,6 +1144,10 @@ function set_anim_spr_animation(controller, animation)
 	end
 end
 
+function is_anim_spr_playing(controller)
+	return controller.current_animation != nil and controller.current_cell ~= nil and
+	   (controller.loop or (not controller.loop and controller.current_cell < #controller.animations[controller.current_animation]))
+end
 
 --
 -- Physics
