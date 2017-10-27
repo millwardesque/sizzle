@@ -39,8 +39,8 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 . 3 Levels
 
 ## Important
-- Moving obstacles
 - Interesting setting
+- Moving obstacles
 - Black-out tiles outside level range
 - Improved levels
 - Time high score
@@ -69,6 +69,7 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 - Destroyed tiles regrow over time
 - High score based on fewest jumps to reach finish
 - Music voices change volume based on player activity (e.g. melody horns as player starts running)
+- Vertical scroll
 
 ## Level design ideas
 Precision and control
