@@ -1,6 +1,25 @@
 # Sizzle
 
-Sizzle is a platformer in which the player can't touch a spot on the ground for more than a short period of time or else the player dies (takes damage?)
+Sizzle is a platformer.
+
+Setting: Space between multiple pieces of spaceships, finding doors to keep well-fed enough to find the re-entry vehicle.
+
+## Required
+- Starfield background
+- Spaceship tilesets
+- Asteroid tilesets
+- Moving obstacles / platforms
+- Black out tiles outside level range
+
+## Nice-to-have
+- Tutorial
+- Gated special moves
+- Animated backgrounds
+- Multiple exits
+- Nebulae, planets, etc. in background
+- Wait for all buttons up on all menu screens before recognizing btnp()
+- Allow for non-looping animations
+- Juicier motion and animations
 
 ## Features / Notes 
 - Previously landed-on tiles have a cooldown time longer than the touch-time to prevent going back and forth
@@ -13,55 +32,6 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
   - Wall-jump
   - Wall-slide (warms up wall tiles just like standing on the ground)
   - Heat-up (warms up tiles even more)
-- Obstacles
-  - Pit spikes
-  - Wall spikes
-
-## Required
-. Gravity
-. Player vs. wall / tile collisions
-. Player walking
-. Tile grid
-. Tiles with cooldown
-. UI showing tile cooldown
-. Level timer
-. Ceiling tile collisions
-. Player jumping
-. Camera follows player
-. Spikes
-. Death
-. Game over screen
-. Level end
-. Indestructible collision tiles
-. Main menu
-. Level reset
-. Support multiple levels
-. 3 Levels
-
-## Important
-- Interesting setting
-- Moving obstacles
-- Black-out tiles outside level range
-- Improved levels
-- Time high score
-. Animated movement
-. Death animation
-. Fall animation
-. Player special moves
-  . Wall slide
-  . Double jump
-
-## Nice-to-have
-- Player special moves
-  - Wall jump
-  - Dash slice
-- Tutorial
-- Gated special moves
-- Animated backgrounds
-- Particles on player movement and idle
-- Wait for all buttons up on all menu screens before recognizing btnp()
-- Allow for non-looping animations
-- Juicier motion and animations
 
 ## Interesting ideas
 - Player can press a button to be dropped in from ceiling
@@ -72,6 +42,8 @@ Sizzle is a platformer in which the player can't touch a spot on the ground for 
 - Vertical scroll
 
 ## Level design ideas
+Scenarios
+ - Trying to hop from one piece of falling debris to another to keep from hitting the grounde
 Precision and control
  - Land between spikes
  - Jump from between spikes
