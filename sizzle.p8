@@ -181,7 +181,7 @@ gameover_state = {
 
 level_end_state = {
 	enter = function(self)
-		record_time(g_game.get_active_level(g_game), flr(g_game.game_timer / 30), "you")
+		self.score_position = record_time(g_game.get_active_level(g_game), flr(g_game.game_timer / 30), "you")
 	end,
 
 	update = function(self)
@@ -209,9 +209,17 @@ level_end_state = {
 		-- @TODO Highlight player's latest score.
 		print ("best times for level "..g_game.active_level, 20, print_y)
 		print_y += line_height
+
+		local position = 1
 		for time in all(g_game.get_active_level(g_game).times) do
+			if position == self.score_position then
+				color(14)
+			else
+				color(7)
+			end
 			print (time.name..": "..time.time, 50, print_y)
 			print_y += line_height
+			position += 1
 		end
 	end,
 
@@ -697,7 +705,6 @@ function make_tile_manager(start_x, start_y, width, height)
 	end
 
 	tile_manager.reset = function(self)
-		g_log.syslog("Resetting tile manager")
 		for x = 1, self.width do
 			if self.tiles[x] ~= nil then
 				for y = 1, self.height do
@@ -710,7 +717,6 @@ function make_tile_manager(start_x, start_y, width, height)
 	end
 
 	tile_manager.get_tile_at_cell = function(self, x, y)
-		-- @DEBUG g_log.syslog("p: ("..x..", "..y..") vs. ("..(1 + x - self.start_x)..", "..(1 + y - self.start_y)..")")
 		return self.tiles[1 + x - self.start_x][1 + y - self.start_y]
 	end
 
@@ -790,12 +796,14 @@ function record_time(level, new_time, player_name)
 	local new_best_times = {}
 	local added_new_time = false
 	local count = 0
+	local insert_position = 0
 	max_best_time_records = 5
 	for time in all(level.times) do
 		if not added_new_time and new_time <= time.time then
 			add(new_best_times, { time = new_time, name = player_name })
 			added_new_time = true
 			count += 1
+			insert_position = count
 		end
 
 		if count == max_best_time_records then
@@ -811,6 +819,7 @@ function record_time(level, new_time, player_name)
 	end
 
 	level.times = new_best_times
+	return insert_position
 end
 
 --
