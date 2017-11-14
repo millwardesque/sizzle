@@ -9,7 +9,9 @@ Setting: Space between multiple pieces of spaceships, finding doors to keep well
 - Spaceship tilesets
 - Asteroid tilesets
 - Moving obstacles / platforms
-- Black out tiles outside level range
+- Draw starfield background behind each level
+- Change player start position to be not middle of camera
+. Black out tiles outside level range
 
 ## Nice-to-have
 - Tutorial
