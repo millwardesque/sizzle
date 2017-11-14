@@ -1047,7 +1047,12 @@ g_renderer.render = function()
 	-- Draw the scene
 	camera_draw_start(g_state.main_camera)
 	
-	map(0, 0, 0, 0, 128, 128) -- draw the whole map and let the clipping region remove unnecessary bits
+	if g_state == ingame_state then
+		local level = g_game.get_active_level(g_game)
+		map(level.cell_x, level.cell_y, level.cell_x * 8, level.cell_y * 8, level.width, level.height)
+	else
+		map(0, 0, 0, 0, 16, 16) -- draw the whole map and let the clipping region remove unnecessary bits
+	end
 
 	for game_obj in all(renderables) do
 		game_obj.renderable.render(game_obj.renderable, game_obj.pos)
