@@ -1,12 +1,5 @@
 g_state = nil
 
-g_corners = {
-	top_left = 1,
-	top_right = 2,
-	bottom_right = 3,
-	bottom_left = 4,
-}
-
 g_flags = {
 	normal = 0,
 	instakill = 1,
@@ -18,6 +11,8 @@ g_levels = {
 	{
 		cell_x = 0,
 		cell_y = 0,
+		bg_x = 0,
+		bg_y = 16,
 		width = 16,
 		height = 16,
 		player_x = 1 * 128 / 4,
@@ -1049,6 +1044,11 @@ g_renderer.render = function()
 	
 	if g_state == ingame_state then
 		local level = g_game.get_active_level(g_game)
+
+		if level.bg_x ~= nil then
+			local cam = g_state.main_camera
+			map(level.bg_x, level.bg_y, cam.pos.x - cam.cam.draw_pos.x, cam.pos.y - cam.cam.draw_pos.y, level.width, level.height)
+		end
 		map(level.cell_x, level.cell_y, level.cell_x * 8, level.cell_y * 8, level.width, level.height)
 	else
 		map(0, 0, 0, 0, 16, 16) -- draw the whole map and let the clipping region remove unnecessary bits
