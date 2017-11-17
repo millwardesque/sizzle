@@ -28,6 +28,8 @@ g_levels = {
 	{
 		cell_x = 16,
 		cell_y = 0,
+		bg_x = 0,
+		bg_y = 16,
 		width = 8,
 		height = 16,
 		player_x = (16 * 8) + 8,
@@ -43,6 +45,8 @@ g_levels = {
 	{
 		cell_x = 24,
 		cell_y = 0,
+		bg_x = 0,
+		bg_y = 16,
 		width = 16,
 		height = 16,
 		player_x = (24 * 8) + 8,
