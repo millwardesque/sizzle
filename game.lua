@@ -100,14 +100,14 @@ ingame_state = {
 		g_game.game_timer += 1
 
 		-- Process input
-		self.player.velocity = make_vec2(0, 0)
+		self.player.vel = make_vec2(0, 0)
 		if not self.player.is_dead then
 			if btn(0) then
-				self.player.velocity.x -= self.player.walk_speed
+				self.player.vel.x -= self.player.walk_speed
 			end
 
 			if btn(1) then
-				self.player.velocity.x += self.player.walk_speed
+				self.player.vel.x += self.player.walk_speed
 			end
 
 			if btn(4) and not self.player.is_jumping and not self.player.is_jump_held then
@@ -257,20 +257,20 @@ main_menu_state = {
 -- Create a player
 --
 function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jump_duration)
-	local new_player = make_game_object(name, start_x, start_y)
+	local p = make_game_object(name, start_x, start_y)
 
 	-- Physics
-	new_player.velocity = make_vec2(0, 0)
-	new_player.old_pos = make_vec2(start_x, start_y)
-	new_player.jump_power = jump_power
-	new_player.is_jumping = false
-	new_player.jump_elapsed = 0
-	new_player.jump_duration = jump_duration
-	new_player.jump_count = 0
-	new_player.is_on_ground = false
-	new_player.is_jump_held = false
-	new_player.is_dead = false
-	new_player.death_explosion = nil
+	p.vel = make_vec2(0, 0)
+	p.old_pos = make_vec2(start_x, start_y)
+	p.jump_power = jump_power
+	p.is_jumping = false
+	p.jump_elapsed = 0
+	p.jump_duration = jump_duration
+	p.jump_count = 0
+	p.is_on_ground = false
+	p.is_jump_held = false
+	p.is_dead = false
+	p.death_explosion = nil
 
 	-- Animations
 	local player_anims = {
@@ -282,15 +282,15 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		dead = { 7, 8, 9, 10, 11, 0 },
 	}
 
-	attach_anim_spr_controller(new_player, 4, player_anims, "idle", 0)
+	attach_anim_spr_controller(p, 4, player_anims, "idle", 0)
 
 	-- Game stats
-	new_player.walk_speed = walk_speed
-	attach_renderable(new_player, sprite)
-	new_player.renderable.draw_order = 1	-- Draw player after other in-game objects
+	p.walk_speed = walk_speed
+	attach_renderable(p, sprite)
+	p.renderable.draw_order = 1	-- Draw player after other in-game objects
 
-	new_player.init = function(self)
-		self.velocity = make_vec2(0, 0)
+	p.init = function(self)
+		self.vel = make_vec2(0, 0)
 		self.old_pos = clone_vec2(self.pos)
 		self.is_jumping = false
 		self.jump_elapsed = 0
@@ -306,7 +306,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		self.death_explosion = nil
 	end
 
-	new_player.jump = function(self)
+	p.jump = function(self)
 		if (not self.is_jumping and self.is_on_ground) or (not self.is_on_ground and self.jump_count < 2) then
 			self.is_jumping = true
 			self.jump_elapsed = 0
@@ -316,12 +316,12 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		end
 	end
 
-	new_player.stop_jump = function(self)
+	p.stop_jump = function(self)
 		self.is_jumping = false
 		self.jump_elapsed = 0
 	end
 
-	new_player.wall_slide = function(self)
+	p.wall_slide = function(self)
 		self.is_wall_sliding = true
 		self.jump_count = 0
 		if self.is_jumping then
@@ -331,12 +331,12 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		set_anim_spr_animation(self.anim_controller, 'wallslide')
 	end
 
-	new_player.stop_wall_slide = function(self)
+	p.stop_wall_slide = function(self)
 		self.is_wall_sliding = false
 	end
 
 	-- Update player
-	new_player.update = function (self)
+	p.update = function (self)
 		if self.is_dead then
 			if not self.death_explosion and not is_anim_spr_playing(self.anim_controller) then
 				local explosion_duration = 30 * 1.5
@@ -352,34 +352,34 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		else
 			if (self.is_jumping) then
 				if self.jump_elapsed < self.jump_duration then
-					new_player.velocity += -1 * g_physics.gravity * self.jump_power
+					p.vel += -1 * g_physics.gravity * self.jump_power
 					self.jump_elapsed += 1
 				else
 					self.stop_jump(self)
 				end
 			elseif (self.is_wall_sliding) then
-				new_player.velocity += -1 * g_physics.gravity * 0.5
+				p.vel += -1 * g_physics.gravity * 0.5
 			end
 
 			self.update_physics(self)
 
 			if not self.is_dead then
 				if (not self.is_on_ground) then
-					if self.velocity.x < 0 then
+					if self.vel.x < 0 then
 						self.renderable.flip_x = true
 						set_anim_spr_animation(self.anim_controller, 'fall')
-					elseif self.velocity.x >= 0 then
+					elseif self.vel.x >= 0 then
 						self.renderable.flip_x = false
 						set_anim_spr_animation(self.anim_controller, 'fall')
 					end
 				else
-					if self.velocity.x < 0 then
+					if self.vel.x < 0 then
 						self.renderable.flip_x = true
 						set_anim_spr_animation(self.anim_controller, 'walk')
-					elseif self.velocity.x > 0 then
+					elseif self.vel.x > 0 then
 						self.renderable.flip_x = false
 						set_anim_spr_animation(self.anim_controller, 'walk')
-					elseif self.velocity.x == 0 then
+					elseif self.vel.x == 0 then
 						self.renderable.flip_x = false
 						set_anim_spr_animation(self.anim_controller, 'idle')
 					end
@@ -391,11 +391,11 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	end
 
 	-- Updates player physics
-	new_player.update_physics = function(self)
-		self.velocity += g_physics.gravity
+	p.update_physics = function(self)
+		self.vel += g_physics.gravity
 
 		self.old_pos = clone_vec2(self.pos)
-		self.pos += self.velocity
+		self.pos += self.vel
 
 		local collisions = self.check_for_collisions(self, {}, 1)
 		self.is_on_ground = false
@@ -435,20 +435,20 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		end
 	end
 
-	new_player.kill = function(self)
+	p.kill = function(self)
 		set_anim_spr_animation(self.anim_controller, 'dead')
 		self.anim_controller.loop = false
 		self.is_dead = true
 	end
 
 	-- Checks for collisions with the player
-	new_player.check_for_collisions = function(self, collisions, iteration)
+	p.check_for_collisions = function(self, collisions, iteration)
 		local max_iterations = 3
 		if iteration > max_iterations then 
 			return collisions
 		end
 
-		local direction = vec2_normalized(self.velocity)
+		local direction = vec2_normalized(self.vel)
 
 		-- Check if left foot is on ground
 		local old_left_foot = self.old_pos + make_vec2(8 * 0.33, 7)
@@ -535,7 +535,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		return collisions
 	end
 
-	return new_player
+	return p
 end
 
 -- 
@@ -655,18 +655,18 @@ end
 --
 -- Creates a manager for a grid of tiles
 function make_tile_manager(start_x, start_y, width, height)
-	local tile_manager = make_game_object("tile manager", start_x, start_y)
-	tile_manager.tiles = {}
-	tile_manager.start_x = start_x
-	tile_manager.start_y = start_y
-	tile_manager.width = width
-	tile_manager.height = height
-	tile_manager.tile_timer_duration = 60
-	tile_manager.cooldown_rate = 0.5
-	tile_manager.warmup_rate = 3
-	tile_manager.active_tiles = {}
+	local tm = make_game_object("tile manager", start_x, start_y)
+	tm.tiles = {}
+	tm.start_x = start_x
+	tm.start_y = start_y
+	tm.width = width
+	tm.height = height
+	tm.tile_timer_duration = 60
+	tm.cooldown_rate = 0.5
+	tm.warmup_rate = 3
+	tm.active_tiles = {}
 
-	tile_manager.init = function(self) 
+	tm.init = function(self) 
 		-- Reset any modified tiles from a previous session
 		self.reset(self)
 
@@ -690,7 +690,7 @@ function make_tile_manager(start_x, start_y, width, height)
 		end
 	end
 
-	tile_manager.update = function(self)
+	tm.update = function(self)
 		for tile in all(self.active_tiles) do
 			if tile ~= 0 and tile.is_dead then
 				del(self.active_tiles, tile)
@@ -700,7 +700,7 @@ function make_tile_manager(start_x, start_y, width, height)
 		end
 	end
 
-	tile_manager.reset = function(self)
+	tm.reset = function(self)
 		for x = 1, self.width do
 			if self.tiles[x] ~= nil then
 				for y = 1, self.height do
@@ -712,11 +712,11 @@ function make_tile_manager(start_x, start_y, width, height)
 		end
 	end
 
-	tile_manager.get_tile_at_cell = function(self, x, y)
+	tm.get_tile_at_cell = function(self, x, y)
 		return self.tiles[1 + x - self.start_x][1 + y - self.start_y]
 	end
 
-	tile_manager.get_map_tile_at_pos = function(self, pos)
+	tm.get_map_tile_at_pos = function(self, pos)
 		local tile = get_map_tile_at_pos(pos)
 		if tile ~= nil then
 			if (tile.cell.x >= self.start_x and tile.cell.x < self.start_x + self.width and
@@ -730,7 +730,7 @@ function make_tile_manager(start_x, start_y, width, height)
 		end
 	end
 
-	return tile_manager
+	return tm
 end
 
 --
@@ -933,7 +933,7 @@ function make_particle_system(name, pos, sprite, animation, lifespan, particle_c
 	for i = 1, particle_count do
 		add(game_obj.particle_system.particles, {
 			pos = make_vec2(0, 0),
-			velocity = vec2_normalized(make_vec2(rnd() - 0.5, rnd() - 0.5)) * particle_speed,
+			vel = vec2_normalized(make_vec2(rnd() - 0.5, rnd() - 0.5)) * particle_speed,
 		})
 	end
 
@@ -944,7 +944,7 @@ function make_particle_system(name, pos, sprite, animation, lifespan, particle_c
 	game_obj.update = function(self)
 		if self.particle_system.lifespan > 0 then
 			for p in all(self.particle_system.particles) do
-				p.pos += p.velocity
+				p.pos += p.vel
 			end
 
 			update_anim_spr_controller(self.anim_controller, self)
@@ -968,11 +968,11 @@ end
 -- Game Object
 --
 function make_game_object(name, pos_x, pos_y)
-	local game_obj = {
+	local go = {
 		pos = make_vec2(pos_x, pos_y),
 		name = name
 	}
-	return game_obj
+	return go
 end
 
 --
@@ -1111,14 +1111,14 @@ end
 -- Camera
 --
 function make_camera(name, pos_x, pos_y, draw_x, draw_y, draw_width, draw_height)
-	local new_cam = make_game_object(name, pos_x, pos_y)
-	new_cam.cam = {
+	local c = make_game_object(name, pos_x, pos_y)
+	c.cam = {
 		draw_pos = make_vec2(draw_x, draw_y),
 		draw_width = draw_width,
 		draw_height = draw_height,
 	}	
 	
-	return new_cam
+	return c
 end
 
 function camera_draw_start(cam)
@@ -1270,12 +1270,12 @@ function vec2_meta.__eq(a, b)
 end
 
 function make_vec2(x, y) 
-	local table = {
+	local v = {
 		x = x,
 		y = y,
 	}
-	setmetatable(table, vec2_meta)
-	return table;
+	setmetatable(v, vec2_meta)
+	return v;
 end
 
 function clone_vec2(v) 
