@@ -6,6 +6,18 @@ Setting: Space between multiple pieces of spaceships, finding doors to keep well
 
 ## Required
 - Spaceship tilesets
+ . Nose cone L/R
+ . Side panel L/R
+ - Booster exhaust
+ - Vents
+ . Internal panel
+ . Logo
+ . Exit Door
+ . Side panel with window
+ - Cracked side panel
+ - Gasket
+ - Debris x3
+ - Floor
 - Asteroid tilesets
 - Moving obstacles / platforms
 - Change player start position to be not middle of camera

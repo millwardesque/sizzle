@@ -9,6 +9,23 @@ g_flags = {
 
 g_levels = {
 	{
+		cell_x = 40,
+		cell_y = 0,
+		bg_x = 0,
+		bg_y = 16,
+		width = 16,
+		height = 16,
+		player_x = (40 * 8) + 8,
+		player_y = 3 * 128 / 4,
+		times = {
+			{ time = 5, name = "cpm" },
+			{ time = 8, name = "lsm" },
+			{ time = 10, name = "zrm" },
+			{ time = 15, name = "gdm" },
+			{ time = 25, name = "elm" },
+		}
+	},
+	{
 		cell_x = 0,
 		cell_y = 0,
 		bg_x = 0,
