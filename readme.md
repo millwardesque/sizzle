@@ -6,18 +6,17 @@ Setting: Space between multiple pieces of spaceships, finding doors to keep well
 
 ## Required
 - Spaceship tilesets
+ - Debris x3
+ . Cracked side panel
  . Nose cone L/R
  . Side panel L/R
- - Booster exhaust
- - Vents
+ . Vents
  . Internal panel
  . Logo
  . Exit Door
  . Side panel with window
- - Cracked side panel
- - Gasket
- - Debris x3
- - Floor
+ . Gasket
+ . Floor
 - Asteroid tilesets
 - Moving obstacles / platforms
 - Change player start position to be not middle of camera
@@ -29,6 +28,7 @@ Setting: Space between multiple pieces of spaceships, finding doors to keep well
 - Tutorial
 - Gated special moves
 - Animated backgrounds
+- Booster exhaust / particles
 - Multiple exits
 - Nebulae, planets, etc. in background
 - Wait for all buttons up on all menu screens before recognizing btnp()
