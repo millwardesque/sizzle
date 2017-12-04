@@ -5,12 +5,13 @@ Sizzle is a platformer.
 Setting: Space between multiple pieces of spaceships, finding doors to keep well-fed enough to find the re-entry vehicle.
 
 ## Required
-- Asteroid x3
 - Moving obstacles / platforms
 - Change player start position to be not middle of camera
 . Starfield background
 . Draw starfield background behind each level
 . Black out tiles outside level range
+. Asteroid x2
+. Spaceship tileset
 
 ## Nice-to-have
 - Tutorial
