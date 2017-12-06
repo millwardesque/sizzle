@@ -109,6 +109,7 @@ ingame_state = {
 		self.main_camera = g_game.main_camera
 		add(self.scene, self.main_camera)
 		self.main_camera.follow_cam.target = self.player
+		self.main_camera.pos = make_vec2(self.player.pos.x + 128 / 4, self.player.pos.y  - 3 * 128 / 4)
 
 		g_game.game_timer = 0
 	end,
@@ -870,7 +871,7 @@ function make_game(levels)
 		self.active_level = level_index
 
 		self.main_camera = make_camera("main", 0, 0, 0, 0, 128, 128)
-		attach_follow_camera(self.main_camera, 48, 32, nil)
+		attach_follow_camera(self.main_camera, 56, 80, nil)
 
 		g_physics.init(g_physics, make_vec2(0, 2.75))
 
@@ -1166,17 +1167,20 @@ function attach_follow_camera(cam, bounds_width, bounds_height, target)
 
 	cam.update = function(self)
 		if self.follow_cam.target ~= nil then
-			-- @TODO Apply to center of screen, not left edge.
+			-- @TODO Apply to center of target
 			
 			local follow = self.follow_cam
 			local target = follow.target
 			
-			local left_bound = self.pos.x + flr(self.cam.draw_width / 2) - flr(follow.bounds_width / 2)
-			local right_bound = self.pos.x + flr(self.cam.draw_width / 2) + flr(follow.bounds_width / 2)
+			local cam_center = self.pos.x + flr(self.cam.draw_width / 2)
+			local left_bound = cam_center - flr(follow.bounds_width / 2)
+			local right_bound = cam_center + flr(follow.bounds_width / 2)
+			g_log.syslog("TP: "..vec2_str(target.pos).." LB: "..left_bound.." RB: "..right_bound)
+
 			if target.pos.x < left_bound then
-				self.pos.x -= left_bound - target.pos.x
+				self.pos.x -= (left_bound - target.pos.x)
 			elseif target.pos.x + 8 > right_bound then
-				self.pos.x += target.pos.x + 8 - right_bound
+				self.pos.x += (target.pos.x + 8 - right_bound)
 			end
 
 			local top_bound = self.pos.y + flr(self.cam.draw_height / 2) - flr(follow.bounds_height / 2)

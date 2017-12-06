@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 14
+version 8
 __lua__
 g_state = nil
 
@@ -84,8 +84,8 @@ g_levels = {
 g_game = nil
 
 --
--- encapsulates the ingame state
--- @todo merge down into g_game manager
+-- Encapsulates the ingame state
+-- @TODO Merge down into g_game manager
 --
 ingame_state = {
 	scene = nil,
@@ -97,21 +97,22 @@ ingame_state = {
 	enter = function(self)
 		self.scene = {}
 
-		-- retrieve the player
+		-- Retrieve the player
 		self.player = g_game.player
 		add(self.scene, self.player)
 
-		-- retrieve the tile manager
+		-- Retrieve the tile manager
 		self.tile_manager = g_game.tile_manager
 		add(self.scene, self.tile_manager)
 		for tile in all(self.tile_manager.active_tiles) do
 			add(self.scene, tile)
 		end
 
-		-- retrieve the camera
+		-- Retrieve the camera
 		self.main_camera = g_game.main_camera
 		add(self.scene, self.main_camera)
 		self.main_camera.follow_cam.target = self.player
+		self.main_camera.pos = make_vec2(self.player.pos.x + 128 / 4, self.player.pos.y  - 3 * 128 / 4)
 
 		g_game.game_timer = 0
 	end,
@@ -119,7 +120,7 @@ ingame_state = {
 	update = function(self)
 		g_game.game_timer += 1
 
-		-- process input
+		-- Process input
 		self.player.vel = make_vec2(0, 0)
 		if not self.player.is_dead then
 			if btn(0) then
@@ -141,13 +142,13 @@ ingame_state = {
 			end
 		end 
 
-		-- @debug reload the level
+		-- @DEBUG Reload the level
 		if btnp(5) then
 			g_game.reload_level(g_game)
 			return
 		end
 
-		-- update game objects
+		-- Update game objects
 		for game_obj in all(self.scene) do
 			if (game_obj.update) then
 				game_obj.update(game_obj)
@@ -176,7 +177,7 @@ gameover_state = {
 	end,
 
 	draw = function(self)
-		-- draw game-over window
+		-- Draw game-over window
 		camera()
 		clip()
 
@@ -210,7 +211,7 @@ level_end_state = {
 		camera()
 		clip()
 
-		-- draw ui window
+		-- Draw UI window
 		rectfill(12, 30, 116, 114, 6)
 		rectfill(14, 32, 114, 112, 3)
 		color(7)
@@ -222,7 +223,7 @@ level_end_state = {
 		print("press any key", 38, print_y)
 		print_y += line_height * 2
 
-		-- @todo highlight player's latest score.
+		-- @TODO Highlight player's latest score.
 		print ("best times for level "..g_game.active_level, 20, print_y)
 		print_y += line_height
 
@@ -254,7 +255,7 @@ main_menu_state = {
 	end,
 
 	draw = function(self)
-		-- draw game-over window
+		-- Draw game-over window
 		camera()
 		clip()
 
@@ -274,12 +275,12 @@ main_menu_state = {
 }
 
 --
--- create a player
+-- Create a player
 --
 function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jump_duration)
 	local p = make_game_object(name, start_x, start_y)
 
-	-- physics
+	-- Physics
 	p.vel = make_vec2(0, 0)
 	p.old_pos = make_vec2(start_x, start_y)
 	p.jump_power = jump_power
@@ -292,7 +293,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 	p.is_dead = false
 	p.death_explosion = nil
 
-	-- animations
+	-- Animations
 	local player_anims = {
 		idle = { 1, },
 		walk = { 2, 3 },
@@ -304,10 +305,10 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 	attach_anim_spr_controller(p, 4, player_anims, "idle", 0)
 
-	-- game stats
+	-- Game stats
 	p.walk_speed = walk_speed
 	attach_renderable(p, sprite)
-	p.renderable.draw_order = 1	-- draw player after other in-game objects
+	p.renderable.draw_order = 1	-- Draw player after other in-game objects
 
 	p.init = function(self)
 		self.vel = make_vec2(0, 0)
@@ -355,7 +356,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		self.is_wall_sliding = false
 	end
 
-	-- update player
+	-- Update player
 	p.update = function (self)
 		if self.is_dead then
 			if not self.death_explosion and not is_anim_spr_playing(self.anim_controller) then
@@ -410,7 +411,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		update_anim_spr_controller(self.anim_controller, self)
 	end
 
-	-- updates player physics
+	-- Updates player physics
 	p.update_physics = function(self)
 		self.vel += g_physics.gravity
 
@@ -461,7 +462,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 		self.is_dead = true
 	end
 
-	-- checks for collisions with the player
+	-- Checks for collisions with the player
 	p.check_for_collisions = function(self, collisions, iteration)
 		local max_iterations = 3
 		if iteration > max_iterations then 
@@ -470,17 +471,17 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 
 		local direction = vec2_normalized(self.vel)
 
-		-- check if left foot is on ground
+		-- Check if left foot is on ground
 		local old_left_foot = self.old_pos + make_vec2(8 * 0.33, 7)
 		local left_foot = self.pos + make_vec2(8 * 0.33, 7)
 		local left_foot_intersection = check_swept_collision(old_left_foot, left_foot)
 
-		-- check if right foot is on ground
+		-- Check if right foot is on ground
 		local old_right_foot = self.old_pos + make_vec2(8 * 0.66, 7)
 		local right_foot = self.pos + make_vec2(8 * 0.66, 7)
 		local right_foot_intersection = check_swept_collision(old_right_foot, right_foot)
 
-		-- adjust pos to account for the collision
+		-- Adjust pos to account for the collision
 		if left_foot_intersection ~= nil then
 			if self.pos.y > left_foot_intersection.pos.y - 8 then
 				self.pos.y = left_foot_intersection.pos.y - 8
@@ -497,17 +498,17 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 			end
 		end
 
-		-- check if left side of head hit the ceiling
+		-- Check if left side of head hit the ceiling
 		local old_left_head = self.old_pos + make_vec2(8 * 0.33, 0)
 		local left_head = self.pos + make_vec2(8 * 0.33, 0)
 		local left_head_intersection = check_swept_collision(old_left_head, left_head)
 
-		-- check if right side of head hit the ceiling
+		-- Check if right side of head hit the ceiling
 		local old_right_head = self.old_pos + make_vec2(8 * 0.66, 0)
 		local right_head = self.pos + make_vec2(8 * 0.66, 0)
 		local right_head_intersection = check_swept_collision(old_right_head, right_head)
 
-		-- adjust pos to account for the collision
+		-- Adjust pos to account for the collision
 		if left_head_intersection ~= nil then
 			if self.pos.y < left_head_intersection.pos.y + 8 then
 				self.pos.y = left_head_intersection.pos.y + 8
@@ -522,12 +523,12 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 			end
 		end
 
-		-- check if the left side of the head is against tile
+		-- Check if the left side of the head is against tile
 		local old_left_hand = clone_vec2(self.old_pos)
 		local left_hand = clone_vec2(self.pos + make_vec2(0, 8 * 0.5))
 		local left_hand_intersection = check_swept_collision(old_left_hand, left_hand)
 
-		-- adjust pos to account for the collision
+		-- Adjust pos to account for the collision
 		if left_hand_intersection ~= nil then
 			if self.pos.x < left_hand_intersection.pos.x + 8 then
 				self.pos.x = left_hand_intersection.pos.x + 8
@@ -537,12 +538,12 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 			end
 		end
 
-		-- check if the right side of the head is against tile
+		-- Check if the right side of the head is against tile
 		local old_right_hand = self.old_pos + make_vec2(7, 0)
 		local right_hand = clone_vec2(self.pos) + make_vec2(7, 8 * 0.5)
 		local right_hand_intersection = check_swept_collision(old_right_hand, right_hand)
 
-		-- adjust pos to account for the collision
+		-- Adjust pos to account for the collision
 		if right_hand_intersection ~= nil then
 			if self.pos.x > right_hand_intersection.pos.x - 8 then
 				self.pos.x = right_hand_intersection.pos.x - 8
@@ -559,7 +560,7 @@ function make_player(name, start_x, start_y, sprite, walk_speed, jump_power, jum
 end
 
 -- 
--- check for collisions between a dynamic pos and a the tilemap using a sweeping algorithm
+-- Check for collisions between a dynamic pos and a the tilemap using a sweeping algorithm
 --
 function check_swept_collision(old_pos, new_pos)
 	local direction = vec2_normalized(new_pos - old_pos)
@@ -570,7 +571,7 @@ function check_swept_collision(old_pos, new_pos)
 		if tile ~= nil then
 			-- g_log.log("s: "..vec2_str(sweeper).." tc: "..vec2_str(tile.cell))
 			if tile.type ~= nil then
-				-- g_log.log("collision")
+				-- g_log.log("COLLISION")
 			 	return tile
 			end
 		end
@@ -582,7 +583,7 @@ end
 
 
 --
--- creates a timer for a single tile
+-- Creates a timer for a single tile
 --
 function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warmup_rate)
 	local t = make_game_object(name, 0, 0)
@@ -610,7 +611,7 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 		elapsed_changed = false
 
 		if self.state == 'idle' then
-			-- do nothing.
+			-- Do nothing.
 		elseif self.state == 'cooldown' then
 			self.elapsed -= self.cooldown_rate
 
@@ -625,11 +626,11 @@ function make_tile(name, type, cell_x, cell_y, max_duration, cooldown_rate, warm
 			if self.elapsed >= self.max_duration then
 				self.set_state(self, 'destroyed')
 			else
-				self.set_state(self, 'cooldown') -- this can be changed to warmup next frame if the tile is activated again
+				self.set_state(self, 'cooldown') -- This can be changed to warmup next frame if the tile is activated again
 			end
 			elapsed_changed = true
 		elseif self.state == 'destroyed' then
-			-- @todo destroy tile
+			-- @TODO Destroy tile
 		end
 
 		if elapsed_changed then
@@ -673,7 +674,7 @@ function tile_str(tile)
 end
 
 --
--- creates a manager for a grid of tiles
+-- Creates a manager for a grid of tiles
 function make_tile_manager(start_x, start_y, width, height)
 	local tm = make_game_object("tile manager", start_x, start_y)
 	tm.tiles = {}
@@ -687,10 +688,10 @@ function make_tile_manager(start_x, start_y, width, height)
 	tm.active_tiles = {}
 
 	tm.init = function(self) 
-		-- reset any modified tiles from a previous session
+		-- Reset any modified tiles from a previous session
 		self.reset(self)
 
-		-- populate the tiles for collidable tiles
+		-- Populate the tiles for collidable tiles
 		self.tiles = {}
 		self.active_tiles = {}
 
@@ -704,7 +705,7 @@ function make_tile_manager(start_x, start_y, width, height)
 					add(self.tiles[x + 1], make_tile("tile-"..cell_x.."-"..cell_y, tiletype, cell_x, cell_y, self.tile_timer_duration, self.cooldown_rate, self.warmup_rate))
 					add(self.active_tiles, self.tiles[x + 1][y + 1])
 				else
-					add(self.tiles[x + 1], 0) -- can't add nil to a table for some reason.
+					add(self.tiles[x + 1], 0) -- Can't add nil to a table for some reason.
 				end
 			end
 		end
@@ -754,7 +755,7 @@ function make_tile_manager(start_x, start_y, width, height)
 end
 
 --
--- gets the map tile at a pixel pos
+-- Gets the map tile at a pixel pos
 --
 function get_map_tile_at_pos(pos)
 	if pos.x < 0 or pos.y < 0 then
@@ -786,7 +787,7 @@ function get_tile_type(sprite)
 end
 
 --
--- converts a worldspace pos to map cell coords
+-- Converts a worldspace pos to map cell coords
 --
 function pos_to_cell(pos)
 	local cell_x = flr(pos.x / 8)
@@ -796,7 +797,7 @@ function pos_to_cell(pos)
 end
 
 --
--- converts map cell coords to a worldspace pos
+-- Converts map cell coords to a worldspace pos
 --
 function cell_to_pos(x, y)
 	local world_x = x * 8
@@ -806,7 +807,7 @@ function cell_to_pos(x, y)
 end
 
 --
--- records a new time in the best-times list.
+-- Records a new time in the best-times list.
 --
 function record_time(level, new_time, player_name)
 	local new_best_times = {}
@@ -839,7 +840,7 @@ function record_time(level, new_time, player_name)
 end
 
 --
--- makes a game manager
+-- Makes a game manager
 --
 function make_game(levels)
 	g = {
@@ -873,11 +874,11 @@ function make_game(levels)
 		self.active_level = level_index
 
 		self.main_camera = make_camera("main", 0, 0, 0, 0, 128, 128)
-		attach_follow_camera(self.main_camera, 48, 32, nil)
+		attach_follow_camera(self.main_camera, 56, 80, nil)
 
 		g_physics.init(g_physics, make_vec2(0, 2.75))
 
-		-- create the tiles
+		-- Create the tiles
 		if self.tile_manager ~= nil then
 			self.tile_manager.reset(self.tile_manager)
 		end
@@ -918,7 +919,7 @@ function make_game(levels)
 end
 
 --
--- sets the active game state
+-- Sets the active game state
 --
 function set_game_state(game_state)
 	if g_state ~= nil and g_state.exit then
@@ -933,7 +934,7 @@ function set_game_state(game_state)
 end
 
 --
--- particle system.
+-- Particle system.
 --
 function make_particle_system(name, pos, sprite, animation, lifespan, particle_count, particle_speed)
 	local game_obj = make_game_object(name, pos.x, pos.y)
@@ -985,7 +986,7 @@ function make_particle_system(name, pos, sprite, animation, lifespan, particle_c
 end
 
 -- 
--- game object
+-- Game Object
 --
 function make_game_object(name, pos_x, pos_y)
 	local go = {
@@ -996,7 +997,7 @@ function make_game_object(name, pos_x, pos_y)
 end
 
 --
--- renderable maker.
+-- Renderable maker.
 --
 function attach_renderable(game_obj, sprite)
 	local r = {
@@ -1010,33 +1011,33 @@ function attach_renderable(game_obj, sprite)
 		palette = nil
 	}
 
-	-- default rendering function
+	-- Default rendering function
 	r.render = function(self, pos)
 
-		-- set the palette
+		-- Set the palette
 		if (self.palette) then
-			-- set colours
+			-- Set colours
 			for i = 0, 15 do
 				pal(i, self.palette[i + 1])
 			end
 
-			-- set transparencies
+			-- Set transparencies
 			for i = 17, #self.palette do
 				palt(self.palette[i], true)
 			end
 		end
 
-		-- draw
+		-- Draw
 		spr(self.sprite, pos.x, pos.y, self.sprite_width, self.sprite_height, self.flip_x, self.flip_y)
 
-		-- reset the palette
+		-- Reset the palette
 		if (self.palette) then
 			pal()
 			palt()
 		end
 	end
 
-	-- save the default render function in case the object wants to use it in an overridden render function.
+	-- Save the default render function in case the object wants to use it in an overridden render function.
 	r.default_render = r.render
 
 	game_obj.renderable = r;
@@ -1044,15 +1045,15 @@ function attach_renderable(game_obj, sprite)
 end
 
 --
--- renderer subsystem
+-- Renderer subsystem
 --
 g_renderer = {}
 
 --
--- main render pipeline
+-- Main render pipeline
 --
 g_renderer.render = function()
-	-- collect renderables 
+	-- Collect renderables 
 	local renderables = {};
 	for game_obj in all(g_state.scene) do
 		if (game_obj.renderable) then
@@ -1060,10 +1061,10 @@ g_renderer.render = function()
 		end
 	end
 
-	-- sort by draw-order
+	-- Sort by draw-order
 	quicksort_draw_order(renderables)
 
-	-- draw the scene
+	-- Draw the scene
 	camera_draw_start(g_state.main_camera)
 	
 	if g_state == ingame_state then
@@ -1086,14 +1087,14 @@ g_renderer.render = function()
 end
 
 --
--- sort a renderable array by draw-order
+-- Sort a renderable array by draw-order
 -- 
 function quicksort_draw_order(list)
 	quicksort_draw_order_helper(list, 1, #list)
 end
 
 --
--- helper function for sorting renderables by draw-order
+-- Helper function for sorting renderables by draw-order
 function quicksort_draw_order_helper(list, low, high)
 	if (low < high) then
 		local p = quicksort_draw_order_partition(list, low, high)
@@ -1103,7 +1104,7 @@ function quicksort_draw_order_helper(list, low, high)
 end
 
 --
--- partition a renderable list by draw_order
+-- Partition a renderable list by draw_order
 --
 function quicksort_draw_order_partition(list, low, high)
 	local pivot = list[high]
@@ -1128,7 +1129,7 @@ function quicksort_draw_order_partition(list, low, high)
 end
 
 --
--- camera
+-- Camera
 --
 function make_camera(name, pos_x, pos_y, draw_x, draw_y, draw_width, draw_height)
 	local c = make_game_object(name, pos_x, pos_y)
@@ -1158,7 +1159,7 @@ function camera_draw_end(cam)
 end
 
 --
--- camera that can follow a target
+-- Camera that can follow a target
 --
 function attach_follow_camera(cam, bounds_width, bounds_height, target)
 	cam.follow_cam = {
@@ -1169,17 +1170,20 @@ function attach_follow_camera(cam, bounds_width, bounds_height, target)
 
 	cam.update = function(self)
 		if self.follow_cam.target ~= nil then
-			-- @todo apply to center of screen, not left edge.
+			-- @TODO Apply to center of target
 			
 			local follow = self.follow_cam
 			local target = follow.target
 			
-			local left_bound = self.pos.x + flr(self.cam.draw_width / 2) - flr(follow.bounds_width / 2)
-			local right_bound = self.pos.x + flr(self.cam.draw_width / 2) + flr(follow.bounds_width / 2)
+			local cam_center = self.pos.x + flr(self.cam.draw_width / 2)
+			local left_bound = cam_center - flr(follow.bounds_width / 2)
+			local right_bound = cam_center + flr(follow.bounds_width / 2)
+			g_log.syslog("TP: "..vec2_str(target.pos).." LB: "..left_bound.." RB: "..right_bound)
+
 			if target.pos.x < left_bound then
-				self.pos.x -= left_bound - target.pos.x
+				self.pos.x -= (left_bound - target.pos.x)
 			elseif target.pos.x + 8 > right_bound then
-				self.pos.x += target.pos.x + 8 - right_bound
+				self.pos.x += (target.pos.x + 8 - right_bound)
 			end
 
 			local top_bound = self.pos.y + flr(self.cam.draw_height / 2) - flr(follow.bounds_height / 2)
@@ -1194,7 +1198,7 @@ function attach_follow_camera(cam, bounds_width, bounds_height, target)
 end
 
 --
--- animated sprite controller
+-- Animated sprite controller
 --
 function attach_anim_spr_controller(game_obj, frames_per_cell, animations, start_anim, start_frame_offset)
 	game_obj.anim_controller = {
@@ -1248,7 +1252,7 @@ function is_anim_spr_playing(controller)
 end
 
 --
--- physics
+-- Physics
 --
 g_physics = {
 	gravity = nil,
@@ -1260,7 +1264,7 @@ end
 
 
 --
--- 2d vector
+-- 2d Vector
 --
 local vec2_meta = {}
 function vec2_meta.__add(a, b)
@@ -1316,7 +1320,7 @@ function vec2_str(v)
 end
 
 --
--- logger
+-- Logger
 --
 g_log = {
 	show_debug = false,
@@ -1324,7 +1328,7 @@ g_log = {
 }
 
 --
--- logs a message
+-- Logs a message
 --
 g_log.log = function(message)
 	add(g_log.log_data, message)
@@ -1335,7 +1339,7 @@ g_log.syslog = function(message)
 end
 
 --
--- renders the log
+-- Renders the log
 --
 g_log.render = function()
 	if (g_log.show_debug) then
@@ -1347,14 +1351,14 @@ g_log.render = function()
 end
 
 --
--- clears the log
+-- Clears the log
 --
 g_log.clear = function()
 	g_log.log_data = {}
 end
 
 --
--- global init function.
+-- Global init function.
 --
 function _init()
 	g_game = make_game(g_levels)
@@ -1364,18 +1368,18 @@ function _init()
 end
 
 --
--- global update function
+-- Global update function
 --
 function _update()
 	if g_state ~= nil then
 		g_state.update(g_state)
 	end
 	
-	g_log.log("mem: "..stat(0).." cpu: "..stat(1))
+	g_log.log("Mem: "..stat(0).." CPU: "..stat(1))
 end
 
 --
--- global draw function
+-- Global draw function
 --
 function _draw()
 	cls()
@@ -1384,7 +1388,7 @@ function _draw()
 		g_state.draw(g_state)
 	end
 
-	-- draw debug log
+	-- Draw debug log
 	g_log.render()
 	g_log.clear()
 end
