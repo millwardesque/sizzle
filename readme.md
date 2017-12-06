@@ -6,7 +6,8 @@ Setting: Space between multiple pieces of spaceships, finding doors to keep well
 
 ## Required
 - Moving obstacles / platforms
-- Change player start position to be not middle of camera
+- Keep player from jumping off the side
+. Change player start position to be not middle of camera
 . Starfield background
 . Draw starfield background behind each level
 . Black out tiles outside level range
@@ -23,6 +24,7 @@ Setting: Space between multiple pieces of spaceships, finding doors to keep well
 - Wait for all buttons up on all menu screens before recognizing btnp()
 - Allow for non-looping animations
 - Juicier motion and animations
+- Max scroll for follow-cam
 
 ## Features / Notes 
 - Previously landed-on tiles have a cooldown time longer than the touch-time to prevent going back and forth
