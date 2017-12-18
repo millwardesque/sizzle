@@ -17,13 +17,6 @@ g_levels = {
 		height = 16,
 		p1_x = (40 * 8) + 8,
 		p1_y = 3 * 128 / 4,
-		times = {
-			{ time = 5, name = "cpm" },
-			{ time = 8, name = "lsm" },
-			{ time = 10, name = "zrm" },
-			{ time = 15, name = "gdm" },
-			{ time = 25, name = "elm" },
-		},
 	},
 	{
 		cell_x = 0,
@@ -34,13 +27,6 @@ g_levels = {
 		height = 16,
 		p1_x = 1 * 128 / 4,
 		p1_y = 3 * 128 / 4,
-		times = {
-			{ time = 5, name = "cpm" },
-			{ time = 8, name = "lsm" },
-			{ time = 10, name = "zrm" },
-			{ time = 15, name = "gdm" },
-			{ time = 25, name = "elm" },
-		}
 	},
 	{
 		cell_x = 16,
@@ -51,13 +37,6 @@ g_levels = {
 		height = 16,
 		p1_x = (16 * 8) + 8,
 		p1_y = 3 * 128 / 4,
-		times = {
-			{ time = 5, name = "cpm" },
-			{ time = 8, name = "lsm" },
-			{ time = 10, name = "zrm" },
-			{ time = 15, name = "gdm" },
-			{ time = 25, name = "elm" },
-		}
 	},
 	{
 		cell_x = 24,
@@ -68,13 +47,6 @@ g_levels = {
 		height = 16,
 		p1_x = (24 * 8) + 8,
 		p1_y = 3 * 128 / 4,
-		times = {
-			{ time = 5, name = "cpm" },
-			{ time = 8, name = "lsm" },
-			{ time = 10, name = "zrm" },
-			{ time = 15, name = "gdm" },
-			{ time = 25, name = "elm" },
-		}
 	},
 }
 
@@ -84,10 +56,9 @@ g_game = nil
 --
 ingame_state = {
 	scene = nil,
-	main_camera = nil,
+	main_cam = nil,
 	player = nil,
 	tile_manager = nil,
-	game_timer = 0,
 
 	enter = function(self)
 		self.scene = {}
@@ -104,17 +75,13 @@ ingame_state = {
 		end
 
 		-- Retrieve the camera
-		self.main_camera = g_game.main_camera
-		add(self.scene, self.main_camera)
-		self.main_camera.follow_cam.target = self.player
-		self.main_camera.pos = mk_vec2(self.player.pos.x + 128 / 4, self.player.pos.y  - 3 * 128 / 4)
-
-		g_game.game_timer = 0
+		self.main_cam = g_game.main_cam
+		add(self.scene, self.main_cam)
+		self.main_cam.follow_cam.target = self.player
+		self.main_cam.pos = mk_vec2(self.player.pos.x + 128 / 4, self.player.pos.y  - 3 * 128 / 4)
 	end,
 
 	update = function(self)
-		g_game.game_timer += 1
-
 		-- Process input
 		self.player.vel = mk_vec2(0, 0)
 		if not self.player.is_dead then
@@ -153,8 +120,6 @@ ingame_state = {
 
 	draw = function(self)
 		g_renderer.render()
-
-		print("time: "..flr(g_game.game_timer / 30))
 	end,
 
 	exit = function(self)
@@ -193,7 +158,6 @@ gameover_state = {
 
 level_end_state = {
 	enter = function(self)
-		self.score_position = record_time(g_game.get_active_level(g_game), flr(g_game.game_timer / 30), "you")
 	end,
 
 	update = function(self)
@@ -217,22 +181,6 @@ level_end_state = {
 		print_y += line_height
 		print("press any key", 38, print_y)
 		print_y += line_height * 2
-
-		-- @TODO Highlight player's latest score.
-		print ("best times for level "..g_game.active_level, 20, print_y)
-		print_y += line_height
-
-		local position = 1
-		for time in all(g_game.get_active_level(g_game).times) do
-			if position == self.score_position then
-				color(14)
-			else
-				color(7)
-			end
-			print (time.name..": "..time.time, 50, print_y)
-			print_y += line_height
-			position += 1
-		end
 	end,
 
 	exit = function(self)
@@ -786,44 +734,13 @@ function cell_to_pos(x, y)
 	return mk_vec2(world_x, world_y)
 end
 
--- Records a new time in the best-times list.
-function record_time(level, new_time, name)
-	local new_best_times = {}
-	local added_new_time = false
-	local count = 0
-	local insert_position = 0
-	max_best_time_records = 5
-	for time in all(level.times) do
-		if not added_new_time and new_time <= time.time then
-			add(new_best_times, { time = new_time, name = name })
-			added_new_time = true
-			count += 1
-			insert_position = count
-		end
-
-		if count == max_best_time_records then
-			break
-		end
-
-		add(new_best_times, time)
-		count += 1
-
-		if count == max_best_time_records then
-			break
-		end
-	end
-
-	level.times = new_best_times
-	return insert_position
-end
-
 -- Makes a game manager
 function mk_game(levels)
 	g = {
 		levels = levels,
 		active_level = nil,
 		player = nil,
-		main_camera = nil,
+		main_cam = nil,
 		tile_manager = nil,
 		scene = {}
 	}
@@ -849,8 +766,8 @@ function mk_game(levels)
 		self.player.init(self.player)
 		self.active_level = level_index
 
-		self.main_camera = mk_camera("main", 0, 0, 0, 0, 128, 128)
-		attach_follow_camera(self.main_camera, 56, 80, nil)
+		self.main_cam = mk_camera("main", 0, 0, 0, 0, 128, 128)
+		attach_follow_camera(self.main_cam, 56, 80, nil)
 
 		g_physics.init(g_physics, mk_vec2(0, 2.75))
 
@@ -1031,13 +948,13 @@ g_renderer.render = function()
 	quicksort_draw_order(renderables)
 
 	-- Draw the scene
-	camera_draw_start(g_state.main_camera)
+	camera_draw_start(g_state.main_cam)
 	
 	if g_state == ingame_state then
 		local level = g_game.get_active_level(g_game)
 
 		if level.bg_x ~= nil then
-			local cam = g_state.main_camera
+			local cam = g_state.main_cam
 			map(level.bg_x, level.bg_y, cam.pos.x - cam.cam.draw_pos.x, cam.pos.y - cam.cam.draw_pos.y, level.width, level.height)
 		end
 		map(level.cell_x, level.cell_y, level.cell_x * 8, level.cell_y * 8, level.width, level.height)
@@ -1049,7 +966,7 @@ g_renderer.render = function()
 		game_obj.renderable.render(game_obj.renderable, game_obj.pos)
 	end
 
-	camera_draw_end(g_state.main_camera)
+	camera_draw_end(g_state.main_cam)
 end
 
 -- Sort a renderable array by draw-order 

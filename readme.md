@@ -5,8 +5,9 @@ Sizzle is a platformer.
 Setting: Space between multiple pieces of spaceships, finding doors to keep well-fed enough to find the re-entry vehicle.
 
 ## Required
-- Moving obstacles / platforms
 - Keep player from jumping off the side
+- Oxygen meter instead of timer / high scores
+- Oxygen meter depletes in air, charges on ground
 . Change player start position to be not middle of camera
 . Starfield background
 . Draw starfield background behind each level
@@ -17,6 +18,7 @@ Setting: Space between multiple pieces of spaceships, finding doors to keep well
 ## Nice-to-have
 - Tutorial
 - Gated special moves
+- Moving obstacles / platforms
 - Animated backgrounds
 - Booster exhaust / particles
 - Multiple exits
